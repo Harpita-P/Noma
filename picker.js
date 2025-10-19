@@ -1,5 +1,5 @@
 // picker.js
-import { getAllTags, addContext, createTag } from "./storage.js";
+import { getAllTags, addContext, createTag, getAllTagsWithContextCounts } from "./storage.js";
 
 const params = new URLSearchParams(location.search);
 const channel = params.get("ch");
@@ -21,7 +21,7 @@ init();
 
 async function init() {
   try {
-    const tags = await getAllTags();
+    const tagsWithCounts = await getAllTagsWithContextCounts();
     
     // Always show the main interface (even with no tags, we can create new ones)
     els.hasTags.style.display = "";
@@ -29,8 +29,20 @@ async function init() {
 
     // populate select - always start with "Create new tag" option
     let options = '<option value="__new__">+ Create new tag...</option>';
-    if (tags.length > 0) {
-      options += tags.map(t => `<option value="${t.id}">@${t.name}</option>`).join("");
+    if (tagsWithCounts.length > 0) {
+      options += tagsWithCounts.map(t => {
+        const counts = t.contextCounts || { text: 0, pdf: 0, image: 0, total: 0 };
+        
+        // Create indicators text
+        const indicators = [];
+        if (counts.text > 0) indicators.push(`📄${counts.text}`);
+        if (counts.pdf > 0) indicators.push(`📕${counts.pdf}`);
+        if (counts.image > 0) indicators.push(`🖼️${counts.image}`);
+        
+        const indicatorText = indicators.length > 0 ? ` (${indicators.join(' ')})` : '';
+        
+        return `<option value="${t.id}">@${t.name}${indicatorText}</option>`;
+      }).join("");
     }
     els.tagSelect.innerHTML = options;
     

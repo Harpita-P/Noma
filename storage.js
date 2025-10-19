@@ -8,8 +8,16 @@ const nowISO = () => new Date().toISOString();
 const id12 = () => Math.random().toString(36).slice(2, 14);
 
 export async function getAllTags() {
-  const { [TAGS_KEY]: tags = [] } = await chrome.storage.local.get(TAGS_KEY);
-  return tags;
+  try {
+    const { [TAGS_KEY]: tags = [] } = await chrome.storage.local.get(TAGS_KEY);
+    return tags;
+  } catch (error) {
+    if (error.message.includes('Extension context invalidated')) {
+      console.log("Taggle: Extension context invalidated, returning empty tags");
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function createTag(name) {
@@ -32,8 +40,16 @@ export async function deleteTag(tagId) {
 }
 
 export async function getContexts(tagId) {
-  const { [CTX_KEY]: ctxMap = {} } = await chrome.storage.local.get(CTX_KEY);
-  return ctxMap[tagId] || [];
+  try {
+    const { [CTX_KEY]: ctxMap = {} } = await chrome.storage.local.get(CTX_KEY);
+    return ctxMap[tagId] || [];
+  } catch (error) {
+    if (error.message.includes('Extension context invalidated')) {
+      console.log("Taggle: Extension context invalidated, returning empty contexts");
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function addContext(tagId, contextData) {
@@ -59,6 +75,7 @@ export async function addContext(tagId, contextData) {
       text: contextData.text || contextData.selection, 
       url: contextData.url || "", 
       title: contextData.title || "", 
+      source: contextData.source || "web", // Track source (web, pdf-upload, etc.)
       createdAt: nowISO() 
     };
   }
@@ -69,7 +86,63 @@ export async function addContext(tagId, contextData) {
   return item;
 }
 
-// Folder management functions
+// ---------- Context counting ----------
+export async function getContextTypeCounts(tagId) {
+  try {
+    const contexts = await getContexts(tagId);
+    const counts = {
+      text: 0,
+      pdf: 0,
+      image: 0,
+      total: contexts.length
+    };
+
+    contexts.forEach(ctx => {
+      if (ctx.type === "image") {
+        counts.image++;
+      } else if (ctx.type === "text") {
+        if (ctx.source === "pdf-upload" || (ctx.title && ctx.title.startsWith("PDF:"))) {
+          counts.pdf++;
+        } else {
+          counts.text++;
+        }
+      }
+    });
+
+    return counts;
+  } catch (error) {
+    if (error.message.includes('Extension context invalidated')) {
+      console.log("Taggle: Extension context invalidated, returning empty counts");
+      return { text: 0, pdf: 0, image: 0, total: 0 };
+    }
+    throw error;
+  }
+}
+
+export async function getAllTagsWithContextCounts() {
+  try {
+    const tags = await getAllTags();
+    const tagsWithCounts = [];
+
+    for (const tag of tags) {
+      const counts = await getContextTypeCounts(tag.id);
+      tagsWithCounts.push({
+        ...tag,
+        contextCounts: counts
+      });
+    }
+
+    return tagsWithCounts;
+  } catch (error) {
+    if (error.message.includes('Extension context invalidated')) {
+      console.log("Taggle: Extension context invalidated, returning empty tags with counts");
+      return [];
+    }
+    throw error;
+  }
+} 
+
+// ---------- Folder management ----------
 export async function getAllFolders() {
   const { [FOLDERS_KEY]: folders = {} } = await chrome.storage.local.get(FOLDERS_KEY);
   return folders;

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Taggle",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Type a prompt in any textbox (Ctrl/Cmd+Space) and save webpage text to @tags via right-click.",
   "permissions": ["activeTab", "scripting", "contextMenus", "storage"],
   "background": {

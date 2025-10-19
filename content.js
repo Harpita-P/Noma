@@ -94,51 +94,149 @@
   }
 
   async function findTagByName(tagName) {
-    const { [TAGS_KEY]: tags = [] } = await chrome.storage.local.get(TAGS_KEY);
-    console.log("Taggle: All tags from storage:", tags);
-    const lc = tagName.toLowerCase();
-    const found = tags.find(t => (t.name || "").toLowerCase() === lc) || null;
-    console.log("Taggle: Looking for tag:", tagName, "found:", found);
-    return found;
+    try {
+      const { [TAGS_KEY]: tags = [] } = await chrome.storage.local.get(TAGS_KEY);
+      console.log("Taggle: All tags from storage:", tags);
+      const lc = tagName.toLowerCase();
+      const found = tags.find(t => (t.name || "").toLowerCase() === lc) || null;
+      console.log("Taggle: Looking for tag:", tagName, "found:", found);
+      return found;
+    } catch (error) {
+      if (error.message.includes('Extension context invalidated')) {
+        console.log("Taggle: Extension context invalidated, tag not found");
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async function getContexts(tagId) {
+    try {
+      const { [CTX_KEY]: ctxMap = {} } = await chrome.storage.local.get(CTX_KEY);
+      return ctxMap[tagId] || [];
+    } catch (error) {
+      if (error.message.includes('Extension context invalidated')) {
+        console.log("Taggle: Extension context invalidated, returning empty contexts");
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  async function getContextTypeCounts(tagId) {
+    try {
+      const { [CTX_KEY]: ctxMap = {} } = await chrome.storage.local.get(CTX_KEY);
+      const contexts = ctxMap[tagId] || [];
+      const counts = {
+        text: 0,
+        pdf: 0,
+        image: 0,
+        total: contexts.length
+      };
+      
+      contexts.forEach(ctx => {
+        if (ctx.type === "image") {
+          counts.image++;
+        } else if (ctx.type === "text") {
+          if (ctx.source === "pdf-upload" || (ctx.title && ctx.title.startsWith("PDF:"))) {
+            counts.pdf++;
+          } else {
+            counts.text++;
+          }
+        }
+      });
+      
+      return counts;
+    } catch (error) {
+      if (error.message.includes('Extension context invalidated')) {
+        console.log("Taggle: Extension context invalidated, returning empty counts");
+        return { text: 0, pdf: 0, image: 0, total: 0 };
+      }
+      throw error;
+    }
+  }
+
+  async function getAllTagsWithContextCounts() {
+    try {
+      const { [TAGS_KEY]: tags = [] } = await chrome.storage.local.get(TAGS_KEY);
+      const tagsWithCounts = [];
+      
+      for (const tag of tags) {
+        const counts = await getContextTypeCounts(tag.id);
+        tagsWithCounts.push({
+          ...tag,
+          contextCounts: counts
+        });
+      }
+      
+      return tagsWithCounts;
+    } catch (error) {
+      if (error.message.includes('Extension context invalidated')) {
+        console.log("Taggle: Extension context invalidated, returning empty tags");
+        return [];
+      }
+      throw error;
+    }
   }
 
   async function buildContextData(tagId, { maxChars = 100000 } = {}) {
-    const { [CTX_KEY]: ctxMap = {} } = await chrome.storage.local.get(CTX_KEY);
-    const items = ctxMap[tagId] || [];
-    console.log("Taggle: Raw items from storage:", items);
-    
-    const textParts = [];
-    const imagePromises = [];
-    
-    items.forEach(item => {
-      if (item.type === "image" && item.imageData) {
-        // Convert base64 data URL to File object for Prompt API
-        const imagePromise = (async () => {
-          try {
-            const response = await fetch(item.imageData);
-            const blob = await response.blob();
-            return new File([blob], `image-${item.id}`, { type: item.mimeType || 'image/jpeg' });
-          } catch (e) {
-            console.warn("Taggle: Could not process image:", e);
-            return null;
-          }
-        })();
-        imagePromises.push(imagePromise);
-      } else if (item.text) {
-        textParts.push(item.text.trim());
+    try {
+      const { [CTX_KEY]: ctxMap = {} } = await chrome.storage.local.get(CTX_KEY);
+      const items = ctxMap[tagId] || [];
+      console.log("Taggle: Raw items from storage:", items);
+      
+      const textParts = [];
+      const imagePromises = [];
+      
+      console.log("Taggle: Current excluded contexts:", Array.from(excludedContexts));
+      
+      items.forEach(item => {
+        console.log("Taggle: Processing item:", item.id, "type:", item.type, "excluded:", excludedContexts.has(item.id));
+        
+        // Skip excluded contexts
+        if (excludedContexts.has(item.id)) {
+          console.log("Taggle: EXCLUDING context from prompt:", item.id, item.type);
+          return;
+        }
+        
+        console.log("Taggle: INCLUDING context in prompt:", item.id, item.type);
+        
+        if (item.type === "image" && item.imageData) {
+          // Convert base64 data URL to File object for Prompt API
+          const imagePromise = (async () => {
+            try {
+              const response = await fetch(item.imageData);
+              const blob = await response.blob();
+              return new File([blob], `image-${item.id}`, { type: item.mimeType || 'image/jpeg' });
+            } catch (e) {
+              console.warn("Taggle: Could not process image:", e);
+              return null;
+            }
+          })();
+          imagePromises.push(imagePromise);
+        } else if (item.text) {
+          textParts.push(item.text.trim());
+        }
+      });
+      
+      // Wait for all images to be processed
+      const images = (await Promise.all(imagePromises)).filter(Boolean);
+      
+      console.log("Taggle: Extracted text parts:", textParts.length, textParts);
+      console.log("Taggle: Found images:", images.length, images);
+      console.log("Taggle: Final context data - texts:", textParts.length, "images:", images.length);
+      
+      let textBlob = textParts.join("\n---\n").trim();
+      if (textBlob.length > maxChars) textBlob = textBlob.slice(0, maxChars) + "\n[...]";
+      
+      return { textBlob, images };
+    } catch (error) {
+      if (error.message.includes('Extension context invalidated')) {
+        console.log("Taggle: Extension context invalidated, returning empty context data");
+        return { textBlob: "", images: [] };
       }
-    });
-    
-    // Wait for all images to be processed
-    const images = (await Promise.all(imagePromises)).filter(Boolean);
-    
-    console.log("Taggle: Extracted text parts:", textParts);
-    console.log("Taggle: Found images:", images.length);
-    
-    let textBlob = textParts.join("\n---\n").trim();
-    if (textBlob.length > maxChars) textBlob = textBlob.slice(0, maxChars) + "\n[...]";
-    
-    return { textBlob, images };
+      throw error;
+    }
   }
 
   function makeFinalPrompt({ contextText, userPrompt }) {
@@ -216,6 +314,8 @@
   let selectedTagIndex = 0;
   let storedCaretPosition = 0;
   let currentTagColors = [];
+  let contextPreviewPanel = null;
+  let excludedContexts = new Set(); // Track temporarily excluded contexts for current session
 
   function createTagDropdown() {
     const dropdown = document.createElement('div');
@@ -239,6 +339,32 @@
     `;
     document.body.appendChild(dropdown);
     return dropdown;
+  }
+
+  function createContextPreviewPanel() {
+    const panel = document.createElement('div');
+    panel.id = 'taggle-context-preview';
+    panel.style.cssText = `
+      position: absolute;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid #000;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 10001;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      font-size: 11px;
+      display: none;
+      min-width: 200px;
+      max-width: 350px;
+      padding: 8px;
+      color: white;
+    `;
+    document.body.appendChild(panel);
+    return panel;
   }
 
   function positionDropdown(element, dropdown) {
@@ -301,10 +427,10 @@
 
   async function showTagSelector(element) {
     console.log("Taggle: showTagSelector called with element:", element);
-    const { [TAGS_KEY]: tags = [] } = await chrome.storage.local.get(TAGS_KEY);
-    console.log("Taggle: Found tags:", tags);
+    const tagsWithCounts = await getAllTagsWithContextCounts();
+    console.log("Taggle: Found tags with counts:", tagsWithCounts);
     
-    if (!tags.length) {
+    if (!tagsWithCounts.length) {
       console.log("Taggle: No tags found");
       toast("No tags found. Create some in Options first.");
       return;
@@ -315,8 +441,9 @@
     }
 
     currentElement = element;
-    selectedTagIndex = 0;
     tagSelectorActive = true;
+    excludedContexts.clear();
+    console.log("Taggle: Starting new tag selector session, cleared excluded contexts");
     storedCaretPosition = getCaretPosition(element); // Store cursor position when selector opens
     
     console.log('Taggle: showTagSelector debug:', {
@@ -327,7 +454,7 @@
     });
 
     // Distribute colors to avoid adjacent duplicates
-    const tagsWithColors = distributeTagColors(tags);
+    const tagsWithColors = distributeTagColors(tagsWithCounts);
     currentTagColors = tagsWithColors;
 
     tagDropdown.innerHTML = `
@@ -341,6 +468,59 @@
       ">
         ${tagsWithColors.map((tag, index) => {
           const tagColor = tag.color;
+          const counts = tag.contextCounts || { text: 0, pdf: 0, image: 0, total: 0 };
+          
+          // Create context type indicators with numbers inside
+          const indicators = [];
+          if (counts.text > 0) {
+            indicators.push(`<span style="
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              min-width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #3b82f6;
+              margin-right: 3px;
+              font-size: 8px;
+              font-weight: 600;
+              color: white;
+              line-height: 1;
+            " title="Text: ${counts.text}">${counts.text}</span>`);
+          }
+          if (counts.pdf > 0) {
+            indicators.push(`<span style="
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              min-width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #ef4444;
+              margin-right: 3px;
+              font-size: 8px;
+              font-weight: 600;
+              color: white;
+              line-height: 1;
+            " title="PDF: ${counts.pdf}">${counts.pdf}</span>`);
+          }
+          if (counts.image > 0) {
+            indicators.push(`<span style="
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              min-width: 14px;
+              height: 14px;
+              border-radius: 3px;
+              background: #eab308;
+              margin-right: 3px;
+              font-size: 8px;
+              font-weight: 600;
+              color: white;
+              line-height: 1;
+            " title="Images: ${counts.image}">${counts.image}</span>`);
+          }
+          
           return `<div class="taggle-tag-item" data-tag="${tag.name}" data-index="${index}" style="
             padding: 4px 12px;
             cursor: pointer;
@@ -354,6 +534,7 @@
             white-space: nowrap;
             display: inline-flex;
             align-items: center;
+            gap: 4px;
             ${index === 0 ? `background: ${tagColor}25; border-color: ${tagColor}50; transform: scale(1.02);` : ''}
           ">
             <span style="
@@ -362,10 +543,15 @@
               height: 5px;
               border-radius: 50%;
               background: ${tagColor};
-              margin-right: 5px;
+              margin-right: 3px;
               opacity: 0.9;
             "></span>
             @${tag.name}
+            ${indicators.length > 0 ? `
+              <span class="tag-indicators" data-tag-id="${tag.id}" style="display: inline-flex; align-items: center; gap: 2px; margin-left: 6px;">
+                ${indicators.join('')}
+              </span>
+            ` : ''}
           </div>`;
         }).join('')}
       </div>
@@ -393,8 +579,13 @@
       item.onclick = () => selectTag(item.dataset.tag);
       
       item.onmouseenter = () => {
+        console.log("Taggle: MOUSE ENTER detected on tag:", tagName);
         selectedTagIndex = parseInt(item.dataset.index);
         updateTagSelection();
+        
+        // Mark this tag as hovered
+        document.querySelectorAll('.taggle-tag-item').forEach(t => t.removeAttribute('data-hovered'));
+        item.setAttribute('data-hovered', 'true');
         
         // Add subtle hover effect if not selected
         if (index !== selectedTagIndex) {
@@ -402,6 +593,9 @@
           item.style.borderColor = `${tagColor}40`;
           item.style.transform = 'scale(1.01)';
         }
+        
+        // Don't show context preview on general tag hover anymore
+        // Context preview will only show when hovering over the indicator squares
       };
       
       item.onmouseleave = () => {
@@ -411,6 +605,35 @@
           item.style.borderColor = `${tagColor}30`;
           item.style.transform = '';
         }
+        
+        // Hide context preview panel with delay to allow moving to panel
+        setTimeout(() => {
+          if (!contextPreviewPanel?.matches(':hover') && !item.matches(':hover')) {
+            hideContextPreview();
+          }
+        }, 200);
+      };
+    });
+
+    // Add hover events specifically to indicator squares
+    tagDropdown.querySelectorAll('.tag-indicators').forEach(indicatorContainer => {
+      const tagId = indicatorContainer.dataset.tagId;
+      const tagElement = indicatorContainer.closest('.taggle-tag-item');
+      
+      indicatorContainer.onmouseenter = () => {
+        console.log("Taggle: Hovering over indicators for tag ID:", tagId);
+        if (tagId) {
+          setTimeout(() => showContextPreview(tagId, tagElement), 100);
+        }
+      };
+      
+      indicatorContainer.onmouseleave = () => {
+        // Hide context preview panel with delay to allow moving to panel
+        setTimeout(() => {
+          if (!contextPreviewPanel?.matches(':hover') && !indicatorContainer.matches(':hover')) {
+            hideContextPreview();
+          }
+        }, 200);
       };
     });
 
@@ -451,8 +674,310 @@
     if (tagDropdown) {
       tagDropdown.style.display = 'none';
     }
+    hideContextPreview();
     tagSelectorActive = false;
     currentElement = null;
+    // Don't clear excluded contexts here - they should persist until next tag selector session
+  }
+
+  function hideContextPreview() {
+    if (contextPreviewPanel) {
+      contextPreviewPanel.style.display = 'none';
+    }
+  }
+
+  async function showContextPreview(tagId, tagElement) {
+    console.log("Taggle: showContextPreview called with tagId:", tagId);
+    
+    if (!contextPreviewPanel) {
+      contextPreviewPanel = createContextPreviewPanel();
+      console.log("Taggle: Created context preview panel");
+    }
+
+    try {
+      const contexts = await getContexts(tagId);
+      console.log("Taggle: Retrieved contexts:", contexts.length, contexts);
+      
+      if (!contexts.length) {
+        console.log("Taggle: No contexts found, showing empty message instead");
+        // Show a message that the tag is empty instead of hiding
+        contextPreviewPanel.innerHTML = `
+          <div style="
+            font-size: 9px;
+            color: #ccc;
+            margin-bottom: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          ">Empty Tag</div>
+          <div style="
+            font-size: 10px;
+            color: #999;
+            text-align: center;
+            padding: 8px;
+            font-style: italic;
+          ">No contexts saved yet.<br>Right-click content to save to this tag.</div>
+        `;
+        
+        // Position and show the panel
+        const tagRect = tagElement.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        
+        contextPreviewPanel.style.left = (tagRect.right + scrollLeft + 8) + 'px';
+        contextPreviewPanel.style.top = (tagRect.top + scrollTop) + 'px';
+        contextPreviewPanel.style.display = 'block';
+        
+        console.log("Taggle: Showing empty tag message");
+        return;
+      }
+
+      // Generate context sub-tags
+      const contextTags = contexts.map(ctx => {
+        const isExcluded = excludedContexts.has(ctx.id);
+        let color, typeLabel, displayText;
+        
+        if (ctx.type === "image") {
+          color = "#eab308";
+          typeLabel = "IMG";
+          displayText = ctx.title || ctx.imageUrl || "Image";
+        } else if (ctx.source === "pdf-upload" || (ctx.title && ctx.title.startsWith("PDF:"))) {
+          color = "#ef4444";
+          typeLabel = "PDF";
+          displayText = ctx.title ? ctx.title.replace("PDF: ", "") : "PDF Document";
+        } else {
+          color = "#3b82f6";
+          typeLabel = "TXT";
+          displayText = ctx.title || (ctx.text ? ctx.text.substring(0, 30) + "..." : "Text");
+        }
+
+        const isLocalFile = ctx.url && ctx.url.startsWith('file://');
+        const canOpenLink = ctx.url && !isLocalFile;
+        
+        return `
+          <div class="context-item" data-context-id="${ctx.id}" data-url="${ctx.url || ''}" style="
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 6px;
+            margin: 2px 0;
+            border-radius: 12px;
+            background: ${isExcluded ? 'rgba(248, 113, 113, 0.15)' : color + '15'};
+            border: 1px solid ${isExcluded ? 'rgba(248, 113, 113, 0.4)' : color + '30'};
+            opacity: 1;
+            transition: all 0.2s ease;
+            cursor: ${canOpenLink ? 'pointer' : 'default'};
+            ${isExcluded ? 'position: relative;' : ''}
+            ${isLocalFile ? 'border-style: dashed;' : ''}
+          ">
+            ${isExcluded ? `
+              <div style="
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                height: 1px;
+                background: #f87171;
+                z-index: 1;
+                pointer-events: none;
+              "></div>
+            ` : ''}
+            <span style="
+              background: ${color};
+              color: white;
+              font-size: 7px;
+              font-weight: 700;
+              padding: 1px 3px;
+              border-radius: 3px;
+              min-width: 18px;
+              text-align: center;
+              z-index: 2;
+              position: relative;
+            ">${typeLabel}</span>
+            <span style="
+              flex: 1;
+              font-size: 10px;
+              color: ${isExcluded ? '#f87171' : 'white'};
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              z-index: 2;
+              position: relative;
+            ">${displayText}</span>
+            <button class="exclude-btn" data-context-id="${ctx.id}" style="
+              background: ${isExcluded ? '#000' : 'none'};
+              color: ${isExcluded ? '#fff' : '#f87171'};
+              border: 1px solid ${isExcluded ? '#000' : '#f87171'};
+              border-radius: 50%;
+              width: 12px;
+              height: 12px;
+              font-size: 8px;
+              font-weight: bold;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              line-height: 1;
+              margin-left: 2px;
+              z-index: 2;
+              position: relative;
+            ">${isExcluded ? '✓' : '×'}</button>
+          </div>
+        `;
+      }).join('');
+
+      contextPreviewPanel.innerHTML = `
+        <div style="
+          font-size: 9px;
+          color: #ccc;
+          margin-bottom: 6px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        ">Contexts (${contexts.length})</div>
+        ${contextTags}
+        <div style="
+          font-size: 8px;
+          color: #999;
+          margin-top: 6px;
+          text-align: center;
+          font-style: italic;
+        ">Click to open • × exclude • ✓ include</div>
+      `;
+
+      // Position the panel next to the tag
+      const tagRect = tagElement.getBoundingClientRect();
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+      
+      contextPreviewPanel.style.left = (tagRect.right + scrollLeft + 8) + 'px';
+      contextPreviewPanel.style.top = (tagRect.top + scrollTop) + 'px';
+      contextPreviewPanel.style.display = 'block';
+      
+      console.log("Taggle: Context preview panel positioned and shown");
+
+      // Add event listeners for context items
+      contextPreviewPanel.querySelectorAll('.context-item').forEach(item => {
+        item.onclick = (e) => {
+          if (e.target.classList.contains('exclude-btn')) {
+            return; // Let button handle its own click
+          }
+          const url = item.dataset.url;
+          if (url && url.trim() && url !== '' && !url.startsWith('file://')) {
+            // Only open if it's not a local file URL
+            window.taggleLinkOpening = true;
+            window.open(url, '_blank');
+            // Reset flag after a short delay
+            setTimeout(() => {
+              window.taggleLinkOpening = false;
+            }, 1000);
+          }
+        };
+      });
+
+      // Add event listeners for exclude buttons
+      contextPreviewPanel.querySelectorAll('.exclude-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const contextId = btn.dataset.contextId;
+          
+          if (excludedContexts.has(contextId)) {
+            excludedContexts.delete(contextId);
+          } else {
+            excludedContexts.add(contextId);
+          }
+          
+          // Refresh the preview
+          showContextPreview(tagId, tagElement);
+        };
+      });
+
+      // Add mouseleave handler to the panel itself
+      contextPreviewPanel.onmouseleave = () => {
+        setTimeout(() => {
+          if (!tagElement.matches(':hover')) {
+            hideContextPreview();
+          }
+        }, 200);
+      };
+
+    } catch (error) {
+      console.warn("Taggle: Could not show context preview:", error);
+      hideContextPreview();
+    }
+  }
+
+  // Note: Event handling is now done with proper event listeners in showContextPreview
+
+  function getCurrentTagIdFromElement(tagElement) {
+    // Helper to get tag ID from element - we'll need to store this when creating tags
+    const tagName = tagElement.dataset.tag;
+    return currentTagColors.find(t => t.name === tagName)?.id;
+  }
+
+  function showTestPreview(tagElement) {
+    console.log("Taggle: Showing test preview panel");
+    
+    if (!contextPreviewPanel) {
+      contextPreviewPanel = createContextPreviewPanel();
+      console.log("Taggle: Created new context preview panel");
+    }
+
+    contextPreviewPanel.innerHTML = `
+      <div style="
+        font-size: 9px;
+        color: #6b7280;
+        margin-bottom: 6px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      ">TEST PREVIEW</div>
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 6px;
+        margin: 2px 0;
+        border-radius: 12px;
+        background: #3b82f615;
+        border: 1px solid #3b82f630;
+      ">
+        <span style="
+          background: #3b82f6;
+          color: white;
+          font-size: 7px;
+          font-weight: 700;
+          padding: 1px 3px;
+          border-radius: 3px;
+          min-width: 18px;
+          text-align: center;
+        ">TEST</span>
+        <span style="
+          flex: 1;
+          font-size: 10px;
+          color: #374151;
+        ">This is a test preview panel</span>
+      </div>
+    `;
+
+    // Position the panel next to the tag
+    const tagRect = tagElement.getBoundingClientRect();
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+    
+    contextPreviewPanel.style.left = (tagRect.right + scrollLeft + 8) + 'px';
+    contextPreviewPanel.style.top = (tagRect.top + scrollTop) + 'px';
+    contextPreviewPanel.style.display = 'block';
+    contextPreviewPanel.style.backgroundColor = 'red'; // Make it very obvious
+    contextPreviewPanel.style.border = '3px solid blue';
+    contextPreviewPanel.style.zIndex = '99999';
+    
+    console.log("Taggle: Test preview panel positioned at:", 
+      contextPreviewPanel.style.left, contextPreviewPanel.style.top);
+    console.log("Taggle: Panel element:", contextPreviewPanel);
+    console.log("Taggle: Panel display style:", contextPreviewPanel.style.display);
+    console.log("Taggle: Panel computed style:", window.getComputedStyle(contextPreviewPanel));
   }
 
   function selectTag(tagName) {
@@ -838,7 +1363,30 @@
   // Hide tag selector when clicking outside
   document.addEventListener('click', (e) => {
     if (tagDropdown && !tagDropdown.contains(e.target) && tagSelectorActive) {
+      // Don't close if clicking within the context preview panel
+      if (contextPreviewPanel && contextPreviewPanel.contains(e.target)) {
+        return;
+      }
+      // Don't close if we're opening a link
+      if (window.taggleLinkOpening) {
+        return;
+      }
       hideTagSelector();
+    }
+  });
+
+  // Prevent tag selector from closing when returning from opened links
+  window.addEventListener('focus', () => {
+    if (window.taggleLinkOpening) {
+      // Don't close the selector if we just opened a link
+      return;
+    }
+  });
+
+  window.addEventListener('blur', () => {
+    if (window.taggleLinkOpening) {
+      // Don't close the selector when opening a link causes blur
+      return;
     }
   });
 
