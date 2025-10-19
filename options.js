@@ -55,7 +55,7 @@ async function render() {
   
   // Update PDF tag selector
   updatePdfTagSelector(tagsWithCounts);
-  updateFolderTagSelector(tags);
+  updateFolderTagSelector(tagsWithCounts);
   
   // Render watched folders
   await renderWatchedFolders();
