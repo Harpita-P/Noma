@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Save to Tag</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; }
+      h2 { margin: 0 0 12px; font-size: 18px; }
+      .row { margin: 12px 0; }
+      select, input[type=text], button { font: inherit; padding: 8px; }
+      .actions { display: flex; gap: 8px; margin-top: 12px; }
+      .muted { color: #666; }
+      .tag-pill { padding: 2px 8px; border-radius: 999px; background: #f1f3f5; }
+    </style>
+  </head>
+  <body>
+    <h2>Save context to tag</h2>
+    <div id="no-tags" class="row" style="display:none">
+      <p class="muted">No tags created yet.</p>
+      <p>Create one in <b>Extensions → Taggle → Options</b>, then try again.</p>
+      <div class="actions">
+        <button id="open-options">Open Options</button>
+        <button id="close">Close</button>
+      </div>
+    </div>
+
+    <div id="has-tags" style="display:none">
+      <div class="row">
+        <label>Choose a tag</label><br/>
+        <select id="tag-select">
+          <option value="__new__">+ Create new tag...</option>
+        </select>
+      </div>
+      <div class="row muted"><span id="preview" class="tag-pill">@</span></div>
+      
+      <div id="new-tag-input" class="row" style="display:none">
+        <label>New tag name</label><br/>
+        <input id="new-tag-name" type="text" placeholder="myNeuroResearch" />
+        <span class="muted">Will display as @myNeuroResearch</span>
+      </div>
+      
+      <div class="actions">
+        <button id="save">Save</button>
+        <button id="cancel">Cancel</button>
+      </div>
+    </div>
+
+    <script type="module" src="picker.js"></script>
+  </body>
+</html>

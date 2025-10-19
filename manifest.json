@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Taggle",
+  "version": "0.5.0",
+  "description": "Type a prompt in any textbox (Ctrl/Cmd+Space) and save webpage text to @tags via right-click.",
+  "permissions": ["activeTab", "scripting", "contextMenus", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/pdf.worker.min.js", "lib/pdf.min.js", "lib/pdf-loader.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

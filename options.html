@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Taggle Options</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; }
+      h1 { font-size: 20px; margin: 0 0 12px; }
+      .row { margin: 12px 0; }
+      input[type=text], button, select { font: inherit; padding: 8px; }
+      .tag { padding: 6px 10px; border: 1px solid #e6e8eb; border-radius: 8px; margin: 6px 0; display: flex; justify-content: space-between; align-items: center; }
+      .contexts { margin-left: 12px; }
+      .ctx { background: #f8f9fa; padding: 8px; border-radius: 6px; margin: 6px 0; white-space: pre-wrap; }
+      .muted { color: #666; }
+      .pill { background: #f1f3f5; padding: 2px 8px; border-radius: 999px; }
+      .header { display:flex; justify-content: space-between; align-items: center; gap: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>Taggle — Tags & Contexts</h1>
+      <button id="refresh">Refresh</button>
+    </div>
+
+    <div class="row">
+      <label>Create new tag</label><br/>
+      <input id="tag-name" type="text" placeholder="myNeuroResearch" />
+      <button id="create">Create</button>
+      <span class="muted">Will display as @myNeuroResearch</span>
+    </div>
+
+    <div class="row">
+      <label>Upload PDF to tag</label><br/>
+      <input id="pdf-file" type="file" accept=".pdf" />
+      <select id="pdf-tag-select">
+        <option value="">Select a tag...</option>
+      </select>
+      <button id="upload-pdf" disabled>Extract & Save</button>
+      <div id="upload-status" class="muted" style="margin-top: 8px;"></div>
+    </div>
+
+    <div id="list" class="row"></div>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
