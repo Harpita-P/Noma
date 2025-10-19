@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Folder Watching Feature</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { padding: 8px 16px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Taggle Folder Watching Test</h1>
+    
+    <div id="status" class="status info">Loading...</div>
+    
+    <button onclick="testFolderWatcher()">Test Folder Watcher</button>
+    <button onclick="testStorage()">Test Storage Functions</button>
+    <button onclick="testPDFExtractor()">Test PDF Extractor</button>
+    
+    <div id="results"></div>
+
+    <script type="module">
+        import { getAllTags, createTag, getAllFolders, addFolderWatch } from './storage.js';
+        
+        window.testStorage = async function() {
+            const results = document.getElementById('results');
+            const status = document.getElementById('status');
+            
+            try {
+                status.textContent = 'Testing storage functions...';
+                status.className = 'status info';
+                
+                // Test tag creation
+                const testTag = await createTag('test-folder-tag');
+                console.log('Created test tag:', testTag);
+                
+                // Test folder addition (without actual directory handle)
+                const testFolder = await addFolderWatch('/test/path', testTag.id, 'Test Folder');
+                console.log('Created test folder watch:', testFolder);
+                
+                // Test retrieval
+                const allTags = await getAllTags();
+                const allFolders = await getAllFolders();
+                
+                results.innerHTML = `
+                    <h3>Storage Test Results:</h3>
+                    <p><strong>Tags:</strong> ${allTags.length} found</p>
+                    <p><strong>Folders:</strong> ${Object.keys(allFolders).length} found</p>
+                    <pre>${JSON.stringify({tags: allTags, folders: allFolders}, null, 2)}</pre>
+                `;
+                
+                status.textContent = 'Storage test completed successfully!';
+                status.className = 'status success';
+                
+            } catch (error) {
+                console.error('Storage test failed:', error);
+                status.textContent = `Storage test failed: ${error.message}`;
+                status.className = 'status error';
+            }
+        };
+        
+        window.testFolderWatcher = async function() {
+            const status = document.getElementById('status');
+            const results = document.getElementById('results');
+            
+            try {
+                status.textContent = 'Testing folder watcher...';
+                status.className = 'status info';
+                
+                // Load folder watcher script
+                const script = document.createElement('script');
+                script.src = 'folder-watcher.js';
+                document.head.appendChild(script);
+                
+                // Wait for it to load
+                let attempts = 0;
+                while (!window.FolderWatcher && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                if (!window.FolderWatcher) {
+                    throw new Error('FolderWatcher not loaded');
+                }
+                
+                // Test initialization
+                const initialized = await window.FolderWatcher.initialize();
+                
+                results.innerHTML = `
+                    <h3>Folder Watcher Test Results:</h3>
+                    <p><strong>Loaded:</strong> ✓</p>
+                    <p><strong>Initialized:</strong> ${initialized ? '✓' : '✗'}</p>
+                    <p><strong>File System API:</strong> ${'showDirectoryPicker' in window ? '✓' : '✗'}</p>
+                `;
+                
+                status.textContent = 'Folder watcher test completed!';
+                status.className = 'status success';
+                
+            } catch (error) {
+                console.error('Folder watcher test failed:', error);
+                status.textContent = `Folder watcher test failed: ${error.message}`;
+                status.className = 'status error';
+            }
+        };
+        
+        window.testPDFExtractor = async function() {
+            const status = document.getElementById('status');
+            const results = document.getElementById('results');
+            
+            try {
+                status.textContent = 'Testing PDF extractor...';
+                status.className = 'status info';
+                
+                // Load PDF extractor script
+                const script = document.createElement('script');
+                script.src = 'pdf-extractor.js';
+                document.head.appendChild(script);
+                
+                // Wait for it to load
+                let attempts = 0;
+                while (!window.PDFExtractor && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                if (!window.PDFExtractor) {
+                    throw new Error('PDFExtractor not loaded');
+                }
+                
+                results.innerHTML = `
+                    <h3>PDF Extractor Test Results:</h3>
+                    <p><strong>Loaded:</strong> ✓</p>
+                    <p><strong>Methods Available:</strong> ${typeof window.PDFExtractor.extractText === 'function' ? '✓' : '✗'}</p>
+                `;
+                
+                status.textContent = 'PDF extractor test completed!';
+                status.className = 'status success';
+                
+            } catch (error) {
+                console.error('PDF extractor test failed:', error);
+                status.textContent = `PDF extractor test failed: ${error.message}`;
+                status.className = 'status error';
+            }
+        };
+        
+        // Auto-run basic tests
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                testStorage();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -1,6 +1,13 @@
 // background.js
 console.log("Taggle: Background script loaded");
 
+// Initialize folder watching when extension starts
+chrome.runtime.onStartup.addListener(async () => {
+  console.log("Taggle: Extension startup - initializing folder watcher");
+  // Note: Folder handles cannot be restored after browser restart
+  // Users will need to reconnect folders after restart due to security restrictions
+});
+
 chrome.runtime.onInstalled.addListener(() => {
   try {
     chrome.contextMenus.create({

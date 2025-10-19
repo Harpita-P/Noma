@@ -1,5 +1,5 @@
 // options.js
-import { getAllTags, createTag, deleteTag, getContexts, addContext } from "./storage.js";
+import { getAllTags, createTag, deleteTag, getContexts, addContext, getAllFolders, addFolderWatch, removeFolderWatch } from "./storage.js";
 
 const els = {
   name: document.getElementById("tag-name"),
@@ -10,6 +10,11 @@ const els = {
   pdfTagSelect: document.getElementById("pdf-tag-select"),
   uploadPdf: document.getElementById("upload-pdf"),
   uploadStatus: document.getElementById("upload-status"),
+  folderTagSelect: document.getElementById("folder-tag-select"),
+  addFolderWatch: document.getElementById("add-folder-watch"),
+  folderStatus: document.getElementById("folder-status"),
+  foldersList: document.getElementById("folders-list"),
+  scanNow: document.getElementById("scan-now"),
 };
 
 els.create.onclick = onCreate;
@@ -17,11 +22,19 @@ els.refresh.onclick = render;
 els.pdfFile.onchange = onPdfFileChange;
 els.pdfTagSelect.onchange = onPdfTagChange;
 els.uploadPdf.onclick = onUploadPdf;
+els.folderTagSelect.onchange = onFolderTagChange;
+els.addFolderWatch.onclick = onAddFolderWatch;
+els.scanNow.onclick = onScanNow;
 
 // Load PDF extractor
-const script = document.createElement('script');
-script.src = 'pdf-extractor.js';
-document.head.appendChild(script);
+const pdfScript = document.createElement('script');
+pdfScript.src = 'pdf-extractor.js';
+document.head.appendChild(pdfScript);
+
+// Load folder watcher
+const folderScript = document.createElement('script');
+folderScript.src = 'folder-watcher.js';
+document.head.appendChild(folderScript);
 
 render();
 
@@ -40,8 +53,12 @@ async function onCreate() {
 async function render() {
   const tags = await getAllTags();
   
-  // Update PDF tag selector
+  // Update tag selectors
   updatePdfTagSelector(tags);
+  updateFolderTagSelector(tags);
+  
+  // Render watched folders
+  await renderWatchedFolders();
   
   if (!tags.length) {
     els.list.innerHTML = `<p class="muted">No tags yet. Create one above.</p>`;
@@ -188,6 +205,207 @@ async function onUploadPdf() {
   } finally {
     els.uploadPdf.disabled = false;
     updateUploadButton();
+  }
+}
+
+// Update folder tag selector dropdown
+function updateFolderTagSelector(tags) {
+  const options = ['<option value="">Select a tag...</option>'];
+  tags.forEach(tag => {
+    options.push(`<option value="${tag.id}">@${tag.name}</option>`);
+  });
+  els.folderTagSelect.innerHTML = options.join('');
+  updateFolderWatchButton();
+}
+
+// Handle folder tag selection change
+function onFolderTagChange() {
+  updateFolderWatchButton();
+}
+
+// Update folder watch button state
+function updateFolderWatchButton() {
+  const hasTag = els.folderTagSelect.value !== '';
+  els.addFolderWatch.disabled = !hasTag;
+}
+
+// Handle adding a folder watch
+async function onAddFolderWatch() {
+  const tagId = els.folderTagSelect.value;
+  
+  if (!tagId) {
+    els.folderStatus.textContent = 'Please select a tag first.';
+    return;
+  }
+  
+  try {
+    els.addFolderWatch.disabled = true;
+    els.folderStatus.textContent = 'Opening folder picker...';
+    
+    // Wait for folder watcher to be available
+    let attempts = 0;
+    while (!window.FolderWatcher && attempts < 50) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    
+    if (!window.FolderWatcher) {
+      throw new Error('Folder watcher not loaded. Please refresh the page and try again.');
+    }
+    
+    // Initialize folder watcher
+    const initialized = await window.FolderWatcher.initialize();
+    if (!initialized) {
+      throw new Error('Folder watching is not supported in this browser. Please use Chrome or Edge.');
+    }
+    
+    // Request folder access
+    const directoryHandle = await window.FolderWatcher.requestFolderAccess();
+    
+    if (!directoryHandle) {
+      els.folderStatus.textContent = 'Folder selection cancelled.';
+      return;
+    }
+    
+    els.folderStatus.textContent = 'Setting up folder watch...';
+    
+    // Add folder watch
+    const folderConfig = await window.FolderWatcher.addFolderWatch(
+      directoryHandle, 
+      tagId, 
+      directoryHandle.name
+    );
+    
+    els.folderStatus.textContent = `✓ Now watching "${folderConfig.name}" for PDFs`;
+    
+    // Clear form
+    els.folderTagSelect.value = '';
+    updateFolderWatchButton();
+    
+    // Refresh the display
+    await renderWatchedFolders();
+    
+    // Clear status after delay
+    setTimeout(() => {
+      els.folderStatus.textContent = '';
+    }, 3000);
+    
+  } catch (error) {
+    console.error('Folder watch setup failed:', error);
+    els.folderStatus.textContent = `❌ Error: ${error.message}`;
+    
+    // Clear error after delay
+    setTimeout(() => {
+      els.folderStatus.textContent = '';
+    }, 5000);
+  } finally {
+    els.addFolderWatch.disabled = false;
+    updateFolderWatchButton();
+  }
+}
+
+// Render watched folders list
+async function renderWatchedFolders() {
+  try {
+    const folders = await getAllFolders();
+    const tags = await getAllTags();
+    const tagMap = new Map(tags.map(t => [t.id, t.name]));
+    
+    if (Object.keys(folders).length === 0) {
+      els.foldersList.innerHTML = '<p class="muted">No folders being watched yet.</p>';
+      return;
+    }
+    
+    const parts = [];
+    for (const [folderId, folder] of Object.entries(folders)) {
+      const tagName = tagMap.get(folder.tagId) || 'Unknown Tag';
+      parts.push(`
+        <div class="tag">
+          <div>
+            <strong>${folder.name}</strong> → <span class="pill">@${tagName}</span>
+            <div class="muted" style="font-size: 12px; margin-top: 4px;">
+              Added: ${new Date(folder.createdAt).toLocaleDateString()}
+            </div>
+          </div>
+          <div>
+            <button data-remove-folder="${folderId}">Remove</button>
+          </div>
+        </div>
+      `);
+    }
+    
+    els.foldersList.innerHTML = parts.join('');
+    
+    // Hook up remove buttons
+    els.foldersList.querySelectorAll('button[data-remove-folder]').forEach(btn => {
+      btn.onclick = async () => {
+        if (confirm('Stop watching this folder?')) {
+          const folderId = btn.dataset.removeFolder;
+          
+          try {
+            // Remove from folder watcher if available
+            if (window.FolderWatcher) {
+              await window.FolderWatcher.removeFolderWatch(folderId);
+            } else {
+              // Fallback to storage-only removal
+              await removeFolderWatch(folderId);
+            }
+            
+            await renderWatchedFolders();
+          } catch (error) {
+            console.error('Error removing folder watch:', error);
+            alert('Error removing folder watch: ' + error.message);
+          }
+        }
+      };
+    });
+    
+  } catch (error) {
+    console.error('Error rendering watched folders:', error);
+    els.foldersList.innerHTML = '<p class="muted">Error loading watched folders.</p>';
+  }
+}
+
+// Handle manual scan now button
+async function onScanNow() {
+  try {
+    els.scanNow.disabled = true;
+    els.scanNow.textContent = 'Scanning...';
+    
+    // Wait for folder watcher to be available
+    let attempts = 0;
+    while (!window.FolderWatcher && attempts < 50) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    
+    if (!window.FolderWatcher) {
+      throw new Error('Folder watcher not loaded. Please refresh the page and try again.');
+    }
+    
+    // Trigger immediate scan of all folders
+    await window.FolderWatcher.scanAllFoldersNow();
+    
+    els.scanNow.textContent = '✓ Scanned';
+    
+    // Refresh the display to show any new contexts
+    render();
+    
+    // Reset button after delay
+    setTimeout(() => {
+      els.scanNow.textContent = 'Scan All Now';
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Manual scan failed:', error);
+    els.scanNow.textContent = '❌ Error';
+    
+    // Reset button after delay
+    setTimeout(() => {
+      els.scanNow.textContent = 'Scan All Now';
+    }, 3000);
+  } finally {
+    els.scanNow.disabled = false;
   }
 }
 
