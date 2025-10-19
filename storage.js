@@ -2,6 +2,7 @@
 /* global chrome */
 const TAGS_KEY = "taggle-tags";
 const CTX_KEY  = "taggle-contexts"; // map: tagId -> array of context items
+const FOLDERS_KEY = "taggle-folders"; // map: folderId -> { path, tagId, name }
 
 const nowISO = () => new Date().toISOString();
 const id12 = () => Math.random().toString(36).slice(2, 14);
@@ -66,4 +67,35 @@ export async function addContext(tagId, contextData) {
   ctxMap[tagId].unshift(item); // newest first
   await chrome.storage.local.set({ [CTX_KEY]: ctxMap });
   return item;
+}
+
+// Folder management functions
+export async function getAllFolders() {
+  const { [FOLDERS_KEY]: folders = {} } = await chrome.storage.local.get(FOLDERS_KEY);
+  return folders;
+}
+
+export async function addFolderWatch(folderPath, tagId, folderName) {
+  const folders = await getAllFolders();
+  const folderId = id12();
+  folders[folderId] = {
+    id: folderId,
+    path: folderPath,
+    tagId: tagId,
+    name: folderName || folderPath.split(/[/\\]/).pop(),
+    createdAt: nowISO()
+  };
+  await chrome.storage.local.set({ [FOLDERS_KEY]: folders });
+  return folders[folderId];
+}
+
+export async function removeFolderWatch(folderId) {
+  const folders = await getAllFolders();
+  delete folders[folderId];
+  await chrome.storage.local.set({ [FOLDERS_KEY]: folders });
+}
+
+export async function getFoldersByTag(tagId) {
+  const folders = await getAllFolders();
+  return Object.values(folders).filter(folder => folder.tagId === tagId);
 }

@@ -39,6 +39,23 @@
       <div id="upload-status" class="muted" style="margin-top: 8px;"></div>
     </div>
 
+    <div class="row">
+      <label>Watch folder for PDFs</label><br/>
+      <select id="folder-tag-select">
+        <option value="">Select a tag...</option>
+      </select>
+      <button id="add-folder-watch">Connect Folder</button>
+      <div id="folder-status" class="muted" style="margin-top: 8px;"></div>
+      
+      <div id="watched-folders" style="margin-top: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="font-size: 16px; margin: 12px 0 8px;">Watched Folders</h3>
+          <button id="scan-now" style="font-size: 12px; padding: 4px 8px;">Scan All Now</button>
+        </div>
+        <div id="folders-list"></div>
+      </div>
+    </div>
+
     <div id="list" class="row"></div>
 
     <script type="module" src="options.js"></script>
