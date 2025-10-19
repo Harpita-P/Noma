@@ -2,6 +2,7 @@
 /* global chrome */
 const TAGS_KEY = "taggle-tags";
 const CTX_KEY  = "taggle-contexts"; // map: tagId -> array of context items
+const FOLDERS_KEY = "taggle-folders"; // map: folderId -> { path, tagId, name }
 
 const nowISO = () => new Date().toISOString();
 const id12 = () => Math.random().toString(36).slice(2, 14);
@@ -85,6 +86,7 @@ export async function addContext(tagId, contextData) {
   return item;
 }
 
+// ---------- Context counting ----------
 export async function getContextTypeCounts(tagId) {
   try {
     const contexts = await getContexts(tagId);
@@ -94,7 +96,7 @@ export async function getContextTypeCounts(tagId) {
       image: 0,
       total: contexts.length
     };
-    
+
     contexts.forEach(ctx => {
       if (ctx.type === "image") {
         counts.image++;
@@ -106,7 +108,7 @@ export async function getContextTypeCounts(tagId) {
         }
       }
     });
-    
+
     return counts;
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
@@ -121,7 +123,7 @@ export async function getAllTagsWithContextCounts() {
   try {
     const tags = await getAllTags();
     const tagsWithCounts = [];
-    
+
     for (const tag of tags) {
       const counts = await getContextTypeCounts(tag.id);
       tagsWithCounts.push({
@@ -129,7 +131,7 @@ export async function getAllTagsWithContextCounts() {
         contextCounts: counts
       });
     }
-    
+
     return tagsWithCounts;
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
@@ -138,4 +140,35 @@ export async function getAllTagsWithContextCounts() {
     }
     throw error;
   }
+} 
+
+// ---------- Folder management ----------
+export async function getAllFolders() {
+  const { [FOLDERS_KEY]: folders = {} } = await chrome.storage.local.get(FOLDERS_KEY);
+  return folders;
+}
+
+export async function addFolderWatch(folderPath, tagId, folderName) {
+  const folders = await getAllFolders();
+  const folderId = id12();
+  folders[folderId] = {
+    id: folderId,
+    path: folderPath,
+    tagId: tagId,
+    name: folderName || folderPath.split(/[/\\]/).pop(),
+    createdAt: nowISO()
+  };
+  await chrome.storage.local.set({ [FOLDERS_KEY]: folders });
+  return folders[folderId];
+}
+
+export async function removeFolderWatch(folderId) {
+  const folders = await getAllFolders();
+  delete folders[folderId];
+  await chrome.storage.local.set({ [FOLDERS_KEY]: folders });
+}
+
+export async function getFoldersByTag(tagId) {
+  const folders = await getAllFolders();
+  return Object.values(folders).filter(folder => folder.tagId === tagId);
 }
