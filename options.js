@@ -1,5 +1,5 @@
 // options.js
-import { getAllTags, createTag, deleteTag, getContexts, addContext } from "./storage.js";
+import { getAllTags, createTag, deleteTag, getContexts, addContext, getAllTagsWithContextCounts } from "./storage.js";
 
 const els = {
   name: document.getElementById("tag-name"),
@@ -38,22 +38,49 @@ async function onCreate() {
 }
 
 async function render() {
-  const tags = await getAllTags();
+  const tagsWithCounts = await getAllTagsWithContextCounts();
   
   // Update PDF tag selector
-  updatePdfTagSelector(tags);
+  updatePdfTagSelector(tagsWithCounts);
   
-  if (!tags.length) {
+  if (!tagsWithCounts.length) {
     els.list.innerHTML = `<p class="muted">No tags yet. Create one above.</p>`;
     return;
   }
 
   const parts = [];
-  for (const t of tags) {
+  for (const t of tagsWithCounts) {
     const ctx = await getContexts(t.id);
+    const counts = t.contextCounts || { text: 0, pdf: 0, image: 0, total: 0 };
+    
+    // Create context type indicators
+    const indicators = [];
+    if (counts.text > 0) {
+      indicators.push(`<span style="display: inline-flex; align-items: center; gap: 2px; margin-right: 8px;">
+        <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 2px; display: inline-block;"></span>
+        <span style="font-size: 11px;">Text: ${counts.text}</span>
+      </span>`);
+    }
+    if (counts.pdf > 0) {
+      indicators.push(`<span style="display: inline-flex; align-items: center; gap: 2px; margin-right: 8px;">
+        <span style="width: 8px; height: 8px; background: #ef4444; border-radius: 2px; display: inline-block;"></span>
+        <span style="font-size: 11px;">PDF: ${counts.pdf}</span>
+      </span>`);
+    }
+    if (counts.image > 0) {
+      indicators.push(`<span style="display: inline-flex; align-items: center; gap: 2px; margin-right: 8px;">
+        <span style="width: 8px; height: 8px; background: #eab308; border-radius: 2px; display: inline-block;"></span>
+        <span style="font-size: 11px;">Images: ${counts.image}</span>
+      </span>`);
+    }
+    
     parts.push(`
       <div class="tag">
-        <div><b>@${t.name}</b> <span class="muted">(${ctx.length} contexts)</span></div>
+        <div>
+          <b>@${t.name}</b> 
+          <span class="muted">(${counts.total} contexts)</span>
+          ${indicators.length > 0 ? `<br><div style="margin-top: 4px; display: flex; flex-wrap: wrap;">${indicators.join('')}</div>` : ''}
+        </div>
         <div>
           <button data-del="${t.id}">Delete</button>
         </div>
@@ -89,7 +116,9 @@ async function render() {
 function updatePdfTagSelector(tags) {
   const options = ['<option value="">Select a tag...</option>'];
   tags.forEach(tag => {
-    options.push(`<option value="${tag.id}">@${tag.name}</option>`);
+    const counts = tag.contextCounts || { text: 0, pdf: 0, image: 0, total: 0 };
+    const totalText = counts.total > 0 ? ` (${counts.total})` : '';
+    options.push(`<option value="${tag.id}">@${tag.name}${totalText}</option>`);
   });
   els.pdfTagSelect.innerHTML = options.join('');
 }
