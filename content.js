@@ -1493,13 +1493,14 @@
     
     // Update any visible dropdowns
     const dropdown = document.getElementById('taggle-tag-selector');
-    if (dropdown && dropdown.style.display !== 'none') {
-      // Re-render the dropdown with new theme
-      const currentElement = dropdown._currentElement;
-      if (currentElement) {
-        hideTagSelector();
-        setTimeout(() => showTagSelector(currentElement), 50);
+    if (dropdown && dropdown.style.display !== 'none' && currentElement) {
+      // Update dropdown theme immediately
+      if (dropdown.updateTheme) {
+        dropdown.updateTheme();
       }
+      // Re-render the dropdown with new theme
+      hideTagSelector();
+      setTimeout(() => showTagSelector(currentElement), 50);
     }
   }
   
