@@ -58,8 +58,42 @@
     return parts.join('\n');
   }
 
-  // Load calendar services for context integration
-  const loadCalendarServices = async () => {
+  // Format email for AI consumption
+  function formatEmailForAI(email) {
+    const parts = [];
+    
+    // Always include subject, even if it's "No Subject"
+    parts.push(`Subject: ${email.subject || 'No Subject'}`);
+    
+    if (email.senderName && email.senderEmail) {
+      parts.push(`From: ${email.senderName} <${email.senderEmail}>`);
+    } else if (email.senderEmail) {
+      parts.push(`From: ${email.senderEmail}`);
+    }
+    
+    if (email.dateFormatted) {
+      parts.push(`Date: ${email.dateFormatted}`);
+    }
+    
+    if (email.bodyText) {
+      parts.push(`Content: ${email.bodyText}`);
+    } else if (email.snippet) {
+      parts.push(`Preview: ${email.snippet}`);
+    }
+    
+    if (email.isUnread) {
+      parts.push(`Status: Unread`);
+    }
+    
+    if (email.isImportant) {
+      parts.push(`Priority: Important`);
+    }
+    
+    return parts.join('\n');
+  }
+
+  // Load dynamic services for context integration
+  const loadDynamicServices = async () => {
     try {
       // Load calendar service script (Manifest V3 compatible)
       const calendarServiceScript = document.createElement('script');
@@ -71,20 +105,33 @@
       calendarSyncScript.src = chrome.runtime.getURL('calendar-sync.js');
       document.head.appendChild(calendarSyncScript);
 
+      // Load Gmail service script
+      const gmailServiceScript = document.createElement('script');
+      gmailServiceScript.src = chrome.runtime.getURL('gmail-service.js');
+      document.head.appendChild(gmailServiceScript);
+
+      // Load Gmail sync script
+      const gmailSyncScript = document.createElement('script');
+      gmailSyncScript.src = chrome.runtime.getURL('gmail-sync.js');
+      document.head.appendChild(gmailSyncScript);
+
       // Wait a bit for scripts to load
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Initialize calendar sync if available
+      // Initialize services if available
       if (window.CalendarSync) {
         await window.CalendarSync.initialize();
       }
+      if (window.GmailSync) {
+        await window.GmailSync.initialize();
+      }
     } catch (error) {
-      console.warn("Taggle: Could not load calendar services:", error);
+      console.warn("Taggle: Could not load dynamic services:", error);
     }
   };
 
-  // Load calendar services
-  loadCalendarServices();
+  // Load dynamic services
+  loadDynamicServices();
 
   // --- Helpers ---------------------------------------------------------------
 
@@ -355,6 +402,42 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         console.warn("Taggle: Error fetching calendar contexts:", calendarError);
       }
       
+      // Check if this is a Gmail tag and merge Gmail contexts
+      try {
+        // Direct Gmail context lookup (without GmailSync dependency)
+        const { 'taggle-gmail-tags': gmailTags = {}, 'taggle-gmail-contexts': gmailContexts = {} } = 
+          await chrome.storage.local.get(['taggle-gmail-tags', 'taggle-gmail-contexts']);
+        
+        console.log('Taggle: Checking Gmail tags for tagId:', tagId);
+        console.log('Taggle: Available Gmail tags:', Object.keys(gmailTags));
+        
+        // Check if this tagId is a Gmail tag
+        const isGmailTag = gmailTags[tagId] !== undefined;
+        console.log('Taggle: Is Gmail tag?', tagId, isGmailTag);
+        
+        if (isGmailTag) {
+          const emails = gmailContexts[tagId] || [];
+          console.log('Taggle: Found Gmail emails:', emails.length);
+          
+          // Convert Gmail emails to context format and merge
+          const formattedGmailContexts = emails.map(email => ({
+            id: email.id || `gmail-${Date.now()}-${Math.random()}`,
+            type: "email",
+            text: formatEmailForAI(email),
+            title: email.subject || 'No Subject',
+            url: "", // Gmail doesn't have direct URLs
+            source: "gmail",
+            createdAt: email.createdAt || new Date().toISOString(),
+            emailData: email // Store full email data
+          }));
+          
+          console.log('Taggle: Formatted Gmail contexts:', formattedGmailContexts.length);
+          return [...formattedGmailContexts, ...regularContexts];
+        }
+      } catch (gmailError) {
+        console.warn("Taggle: Error fetching Gmail contexts:", gmailError);
+      }
+      
       return regularContexts;
     } catch (error) {
       if (error.message.includes('Extension context invalidated')) {
@@ -373,12 +456,18 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         text: 0,
         pdf: 0,
         image: 0,
+        calendar: 0,
+        email: 0,
         total: contexts.length
       };
       
       contexts.forEach(ctx => {
         if (ctx.type === "image") {
           counts.image++;
+        } else if (ctx.type === "calendar") {
+          counts.calendar++;
+        } else if (ctx.type === "email") {
+          counts.email++;
         } else if (ctx.type === "text") {
           if (ctx.source === "pdf-upload" || (ctx.title && ctx.title.startsWith("PDF:"))) {
             counts.pdf++;
@@ -392,7 +481,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     } catch (error) {
       if (error.message.includes('Extension context invalidated')) {
         console.log("Taggle: Extension context invalidated, returning empty counts");
-        return { text: 0, pdf: 0, image: 0, total: 0 };
+        return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, total: 0 };
       }
       throw error;
     }
@@ -412,14 +501,25 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         console.warn('Taggle: Could not load calendar tags:', error);
       }
       
+      // Get Gmail tags to check which tags are Gmail tags
+      let gmailTags = {};
+      try {
+        const { 'taggle-gmail-tags': storedGmailTags = {} } = await chrome.storage.local.get('taggle-gmail-tags');
+        gmailTags = storedGmailTags;
+      } catch (error) {
+        console.warn('Taggle: Could not load Gmail tags:', error);
+      }
+      
       for (const tag of tags) {
         const counts = await getContextTypeCounts(tag.id);
         const isCalendarTag = !!calendarTags[tag.id];
+        const isGmailTag = !!gmailTags[tag.id];
         
         tagsWithCounts.push({
           ...tag,
           contextCounts: counts,
-          isCalendarTag: isCalendarTag
+          isCalendarTag: isCalendarTag,
+          isGmailTag: isGmailTag
         });
       }
       
@@ -494,10 +594,24 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
   }
 
   function makeFinalPrompt({ contextText, userPrompt }) {
+    // Smart prompt preprocessing for conversational responses
+    const processedPrompt = preprocessPrompt(userPrompt);
+    
     if (contextText) {
-      return `CONTEXT:\n${contextText}\n\nUSER PROMPT:\n${userPrompt}`;
+      return `CONTEXT:\n${contextText}\n\nUSER PROMPT:\n${processedPrompt}`;
     }
-    return `USER PROMPT:\n${userPrompt}`;
+    return processedPrompt;
+  }
+  
+  function preprocessPrompt(userPrompt) {
+    const lowerPrompt = userPrompt.toLowerCase();
+    
+    // Detect conversational keywords
+    if (lowerPrompt.includes('tell ') || lowerPrompt.includes('message ') || lowerPrompt.includes('text ')) {
+      return `${userPrompt} (Write as a direct message starting with "Hey")`;
+    }
+    
+    return userPrompt;
   }
 
   // === Tag selector system (triggered with Ctrl+Q) ===
@@ -714,11 +828,14 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       storedCaretPosition: storedCaretPosition
     });
 
-    // Sort tags: dynamic tags (calendar) first, then regular tags
+    // Sort tags: dynamic tags (calendar, gmail) first, then regular tags
     const sortedTags = tagsWithCounts.sort((a, b) => {
+      const aIsDynamic = a.isCalendarTag || a.isGmailTag;
+      const bIsDynamic = b.isCalendarTag || b.isGmailTag;
+      
       // Dynamic tags first
-      if (a.isCalendarTag && !b.isCalendarTag) return -1;
-      if (!a.isCalendarTag && b.isCalendarTag) return 1;
+      if (aIsDynamic && !bIsDynamic) return -1;
+      if (!aIsDynamic && bIsDynamic) return 1;
       // Within same type, sort alphabetically
       return a.name.localeCompare(b.name);
     });
@@ -728,14 +845,15 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     currentTagColors = tagsWithColors;
 
     // Separate dynamic and regular tags for UI grouping
-    const dynamicTags = tagsWithColors.filter(tag => tag.isCalendarTag);
-    const regularTags = tagsWithColors.filter(tag => !tag.isCalendarTag);
+    const dynamicTags = tagsWithColors.filter(tag => tag.isCalendarTag || tag.isGmailTag);
+    const regularTags = tagsWithColors.filter(tag => !tag.isCalendarTag && !tag.isGmailTag);
 
     // Helper function to render a tag
     const renderTag = (tag, index, isDynamic = false) => {
       const tagColor = tag.color;
       const counts = tag.contextCounts || { text: 0, pdf: 0, image: 0, calendar: 0, total: 0 };
       const isCalendarTag = tag.isCalendarTag || false;
+      const isGmailTag = tag.isGmailTag || false;
       
       // Create context type indicators
       const indicators = [];
@@ -743,14 +861,25 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       if (isCalendarTag) {
         // Calendar icon as tilted tile for dynamic tags
         indicators.push(`<img src="${chrome.runtime.getURL('gc-logo.png')}" style="
-          width: 18px;
-          height: 18px;
-          margin-right: 6px;
+          width: 14px;
+          height: 14px;
+          margin-right: 3px;
           border-radius: 3px;
           transform: rotate(-8deg);
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           border: 1px solid rgba(255,255,255,0.2);
         " title="Google Calendar Tag" />`);
+      } else if (isGmailTag) {
+        // Gmail icon as tilted tile for dynamic tags
+        indicators.push(`<img src="${chrome.runtime.getURL('email-logo.png')}" style="
+          width: 14px;
+          height: 14px;
+          margin-right: 3px;
+          border-radius: 3px;
+          transform: rotate(-8deg);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+        " title="Gmail Tag" />`);
       } else {
         // Regular numbered indicators
         if (counts.text > 0) {
@@ -780,6 +909,13 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
             min-width: 14px; height: 14px; border-radius: 3px; background: #10b981;
             margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
           " title="Calendar: ${counts.calendar}">${counts.calendar}</span>`);
+        }
+        if (counts.email > 0) {
+          indicators.push(`<span style="
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 14px; height: 14px; border-radius: 3px; background: #f59e0b;
+            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
+          " title="Email: ${counts.email}">${counts.email}</span>`);
         }
       }
       
@@ -905,9 +1041,9 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       indicatorContainer.onmouseenter = () => {
         console.log("Taggle: Hovering over indicators for tag ID:", tagId);
         if (tagId) {
-          // Check if this is a dynamic tag (calendar tag)
+          // Check if this is a dynamic tag (calendar or Gmail tag)
           const tag = currentTagColors.find(t => t.id === tagId);
-          if (tag && tag.isCalendarTag) {
+          if (tag && (tag.isCalendarTag || tag.isGmailTag)) {
             // Show simple info panel for dynamic tags
             setTimeout(() => showDynamicTagInfo(tag, tagElement), 100);
           } else {
@@ -1008,6 +1144,32 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           line-height: 1.4;
           text-align: center;
         ">Connected to your Google Calendar<br>Automatically syncs data</div>
+      `;
+    } else if (tag.isGmailTag) {
+      infoContent = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        ">
+          <img src="${chrome.runtime.getURL('email-logo.png')}" style="
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+          " />
+          <div style="
+            font-size: 10px;
+            color: #fff;
+            font-weight: 600;
+          ">Gmail</div>
+        </div>
+        <div style="
+          font-size: 9px;
+          color: #ccc;
+          line-height: 1.4;
+          text-align: center;
+        ">Connected to your Gmail<br>Automatically syncs data</div>
       `;
     }
 

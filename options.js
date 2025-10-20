@@ -66,6 +66,7 @@ const calendarSyncScript = document.createElement('script');
 calendarSyncScript.src = 'calendar-sync.js';
 document.head.appendChild(calendarSyncScript);
 
+
 render();
 
 async function onCreate() {
@@ -101,7 +102,7 @@ async function render() {
   const parts = [];
   for (const t of tagsWithCounts) {
     const ctx = await getContexts(t.id);
-    const counts = t.contextCounts || { text: 0, pdf: 0, image: 0, calendar: 0, total: 0 };
+    const counts = t.contextCounts || { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, total: 0 };
     
     // Create context type indicators
     const indicators = [];
@@ -127,6 +128,12 @@ async function render() {
       indicators.push(`<span style="display: inline-flex; align-items: center; gap: 2px; margin-right: 8px;">
         <span style="width: 8px; height: 8px; background: #10b981; border-radius: 2px; display: inline-block;"></span>
         <span style="font-size: 11px;">Calendar: ${counts.calendar}</span>
+      </span>`);
+    }
+    if (counts.email > 0) {
+      indicators.push(`<span style="display: inline-flex; align-items: center; gap: 2px; margin-right: 8px;">
+        <span style="width: 8px; height: 8px; background: #f59e0b; border-radius: 2px; display: inline-block;"></span>
+        <span style="font-size: 11px;">Email: ${counts.email}</span>
       </span>`);
     }
     
@@ -759,6 +766,7 @@ window.deleteCalendarTag = async function(tagId) {
     alert("Failed to delete calendar tag: " + error.message);
   }
 };
+
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"]/g, ch =>

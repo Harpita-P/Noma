@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Taggle",
-  "version": "1.5.0",
+  "version": "1.7.0",
   "description": "Type a prompt in any textbox (Ctrl/Cmd+Space) and save webpage text to @tags via right-click.",
   "permissions": ["activeTab", "scripting", "contextMenus", "storage", "identity"],
   "oauth2": {
     "client_id": "713365663850-30s2icpvqori18a3k3ilru9mia53iacf.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/gmail.readonly",
       "https://www.googleapis.com/auth/userinfo.email"
     ]
   },
@@ -37,7 +38,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["lib/pdf.worker.min.js", "lib/pdf.min.js", "lib/pdf-loader.js", "folder-watcher.js", "calendar-service-v3.js", "calendar-sync.js", "gc-logo.png"],
+      "resources": ["lib/pdf.worker.min.js", "lib/pdf.min.js", "lib/pdf-loader.js", "calendar-service-v3.js", "calendar-sync.js", "gc-logo.png", "gmail-service.js", "gmail-sync.js", "email-logo.png"],
       "matches": ["<all_urls>"]
     }
   ]

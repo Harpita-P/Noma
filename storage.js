@@ -68,6 +68,30 @@ export async function getContexts(tagId) {
       console.warn("Taggle: Error fetching calendar contexts:", calendarError);
     }
     
+    // Check if this is a Gmail tag and merge Gmail contexts
+    try {
+      if (typeof window !== 'undefined' && window.GmailSync) {
+        const isGmailTag = await window.GmailSync.isGmailTag(tagId);
+        if (isGmailTag) {
+          const gmailContexts = await window.GmailSync.getGmailContexts(tagId);
+          // Convert Gmail emails to context format and merge
+          const formattedGmailContexts = gmailContexts.map(email => ({
+            id: email.id,
+            type: "email",
+            text: window.GmailSync.formatEmailForAI(email),
+            title: email.subject,
+            url: "", // Gmail doesn't have direct URLs
+            source: "gmail",
+            createdAt: email.createdAt,
+            emailData: email // Store full email data
+          }));
+          return [...formattedGmailContexts, ...regularContexts];
+        }
+      }
+    } catch (gmailError) {
+      console.warn("Taggle: Error fetching Gmail contexts:", gmailError);
+    }
+    
     return regularContexts;
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
@@ -121,6 +145,7 @@ export async function getContextTypeCounts(tagId) {
       pdf: 0,
       image: 0,
       calendar: 0,
+      email: 0,
       total: contexts.length
     };
 
@@ -129,6 +154,8 @@ export async function getContextTypeCounts(tagId) {
         counts.image++;
       } else if (ctx.type === "calendar") {
         counts.calendar++;
+      } else if (ctx.type === "email") {
+        counts.email++;
       } else if (ctx.type === "text") {
         if (ctx.source === "pdf-upload" || (ctx.title && ctx.title.startsWith("PDF:"))) {
           counts.pdf++;
@@ -142,7 +169,7 @@ export async function getContextTypeCounts(tagId) {
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
       console.log("Taggle: Extension context invalidated, returning empty counts");
-      return { text: 0, pdf: 0, image: 0, calendar: 0, total: 0 };
+      return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, total: 0 };
     }
     throw error;
   }
@@ -162,14 +189,25 @@ export async function getAllTagsWithContextCounts() {
       console.warn('Taggle: Could not load calendar tags:', error);
     }
 
+    // Get Gmail tags to check which tags are Gmail tags
+    let gmailTags = {};
+    try {
+      const { 'taggle-gmail-tags': storedGmailTags = {} } = await chrome.storage.local.get('taggle-gmail-tags');
+      gmailTags = storedGmailTags;
+    } catch (error) {
+      console.warn('Taggle: Could not load Gmail tags:', error);
+    }
+
     for (const tag of tags) {
       const counts = await getContextTypeCounts(tag.id);
       const isCalendarTag = !!calendarTags[tag.id];
+      const isGmailTag = !!gmailTags[tag.id];
       
       tagsWithCounts.push({
         ...tag,
         contextCounts: counts,
-        isCalendarTag: isCalendarTag
+        isCalendarTag: isCalendarTag,
+        isGmailTag: isGmailTag
       });
     }
 
