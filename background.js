@@ -20,12 +20,12 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
-// Function to open the large centered Taggle window
+// Function to open the fullscreen Taggle window
 async function openTaggleWindow() {
   try {
     // Check if window already exists
     const existingWindows = await chrome.windows.getAll();
-    const taggleWindow = existingWindows.find(w => w.type === 'popup' && w.width === 1100);
+    const taggleWindow = existingWindows.find(w => w.type === 'popup' && w.state === 'maximized');
     
     if (taggleWindow) {
       // Focus existing window
@@ -33,27 +33,18 @@ async function openTaggleWindow() {
       return;
     }
     
-    // Get current screen info
+    // Get current screen info to determine available space
     const currentWindow = await chrome.windows.getCurrent();
     
-    // Calculate center position for a 1100x700 window
-    const width = 1100;
-    const height = 700;
-    const left = Math.round((currentWindow.width - width) / 2) + (currentWindow.left || 0);
-    const top = Math.round((currentWindow.height - height) / 2) + (currentWindow.top || 0);
-    
-    // Create new centered window
+    // Create new fullscreen window
     const newWindow = await chrome.windows.create({
       url: chrome.runtime.getURL('popup.html'),
       type: 'popup',
-      width: width,
-      height: height,
-      left: left,
-      top: top,
+      state: 'maximized',
       focused: true
     });
     
-    console.log("Taggle: Opened centered window:", newWindow.id);
+    console.log("Taggle: Opened fullscreen window:", newWindow.id);
     
   } catch (error) {
     console.error("Taggle: Error opening window:", error);
