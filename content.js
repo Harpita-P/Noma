@@ -339,23 +339,30 @@
   function createTagDropdown() {
     const dropdown = document.createElement('div');
     dropdown.id = 'taggle-tag-selector';
-    dropdown.style.cssText = `
-      position: absolute;
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
-      max-height: 320px;
-      overflow: hidden;
-      z-index: 10000;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-      font-size: 13px;
-      display: none;
-      min-width: 280px;
-      max-width: 400px;
-    `;
+    
+    const updateDropdownTheme = () => {
+      const theme = getThemeStyles();
+      dropdown.style.cssText = `
+        position: absolute;
+        background: ${theme.dropdown.background};
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: ${theme.dropdown.border};
+        border-radius: 12px;
+        box-shadow: ${theme.dropdown.boxShadow};
+        max-height: 320px;
+        overflow: hidden;
+        z-index: 10000;
+        font-family: 'Familjen Grotesk', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+        font-size: 13px;
+        display: none;
+        min-width: 280px;
+        max-width: 400px;
+      `;
+    };
+    
+    updateDropdownTheme();
+    dropdown.updateTheme = updateDropdownTheme;
     document.body.appendChild(dropdown);
     return dropdown;
   }
@@ -374,7 +381,7 @@
       max-height: 300px;
       overflow-y: auto;
       z-index: 10001;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      font-family: 'Familjen Grotesk', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
       font-size: 11px;
       display: none;
       min-width: 200px;
@@ -484,6 +491,8 @@
         gap: 8px;
         max-height: 280px;
         overflow-y: auto;
+        background: ${isDarkMode ? '#0a0a0a' : '#ffffff'};
+        border-radius: 12px 12px 0 0;
       ">
         ${tagsWithColors.map((tag, index) => {
           const tagColor = tag.color;
@@ -540,28 +549,39 @@
             " title="Images: ${counts.image}">${counts.image}</span>`);
           }
           
+          const theme = getThemeStyles();
+          const baseBackground = isDarkMode ? `${tagColor}20` : `${tagColor}15`;
+          const baseBorder = isDarkMode ? `${tagColor}40` : `${tagColor}30`;
+          const selectedBackground = isDarkMode ? `${tagColor}30` : `${tagColor}25`;
+          const selectedBorder = isDarkMode ? `${tagColor}60` : `${tagColor}50`;
+          const textColor = tagColor; // Keep original tag colors in both light and dark mode
+          
+          if (index === 0) {
+            console.log('Taggle: Rendering first tag, isDarkMode:', isDarkMode, 'baseBackground:', baseBackground, 'tagColor:', tagColor);
+          }
+          
           return `<div class="taggle-tag-item" data-tag="${tag.name}" data-index="${index}" style="
             padding: 4px 12px;
             cursor: pointer;
             border-radius: 16px;
-            background: ${tagColor}15;
-            border: 1px solid ${tagColor}30;
+            background: ${baseBackground};
+            border: 1px solid ${baseBorder};
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             font-weight: 500;
             font-size: 12px;
-            color: ${tagColor};
+            color: ${textColor};
             white-space: nowrap;
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            ${index === 0 ? `background: ${tagColor}25; border-color: ${tagColor}50; transform: scale(1.02);` : ''}
+            ${index === 0 ? `background: ${selectedBackground}; border-color: ${selectedBorder}; transform: scale(1.02);` : ''}
           ">
             <span style="
               display: inline-block;
               width: 5px;
               height: 5px;
               border-radius: 50%;
-              background: ${tagColor};
+              background: ${isDarkMode ? tagColor : tagColor};
               margin-right: 3px;
               opacity: 0.9;
             "></span>
@@ -576,14 +596,14 @@
       </div>
       <div style="
         padding: 8px 16px;
-        background: rgba(248, 249, 250, 0.6);
-        border-top: 1px solid rgba(0, 0, 0, 0.04);
+        background: ${getThemeStyles().footer.background};
+        border-top: 1px solid ${getThemeStyles().footer.borderColor};
         font-size: 10px;
-        color: #9ca3af;
+        color: ${getThemeStyles().text.muted};
         text-align: center;
         backdrop-filter: blur(10px);
       ">
-        ↑↓ Navigate • Enter Select • Esc Cancel
+        ↑↓ Navigate • Enter Select • Esc Cancel • Ctrl+D Dark Mode
       </div>
     `;
 
@@ -608,8 +628,10 @@
         
         // Add subtle hover effect if not selected
         if (index !== selectedTagIndex) {
-          item.style.background = `${tagColor}20`;
-          item.style.borderColor = `${tagColor}40`;
+          const hoverBackground = isDarkMode ? `${tagColor}25` : `${tagColor}20`;
+          const hoverBorder = isDarkMode ? `${tagColor}50` : `${tagColor}40`;
+          item.style.background = hoverBackground;
+          item.style.borderColor = hoverBorder;
           item.style.transform = 'scale(1.01)';
         }
         
@@ -620,8 +642,10 @@
       item.onmouseleave = () => {
         // Remove hover effect if not selected
         if (index !== selectedTagIndex) {
-          item.style.background = `${tagColor}15`;
-          item.style.borderColor = `${tagColor}30`;
+          const baseBackground = isDarkMode ? `${tagColor}20` : `${tagColor}15`;
+          const baseBorder = isDarkMode ? `${tagColor}40` : `${tagColor}30`;
+          item.style.background = baseBackground;
+          item.style.borderColor = baseBorder;
           item.style.transform = '';
         }
         
@@ -668,8 +692,10 @@
       
       if (index === selectedTagIndex) {
         // Highlight selected pill
-        item.style.background = `${tagColor}25`;
-        item.style.borderColor = `${tagColor}50`;
+        const selectedBackground = isDarkMode ? `${tagColor}30` : `${tagColor}25`;
+        const selectedBorder = isDarkMode ? `${tagColor}60` : `${tagColor}50`;
+        item.style.background = selectedBackground;
+        item.style.borderColor = selectedBorder;
         item.style.transform = 'scale(1.02)';
         item.style.boxShadow = `0 2px 8px ${tagColor}20`;
         
@@ -681,8 +707,10 @@
         });
       } else {
         // Reset to default pill style
-        item.style.background = `${tagColor}15`;
-        item.style.borderColor = `${tagColor}30`;
+        const baseBackground = isDarkMode ? `${tagColor}20` : `${tagColor}15`;
+        const baseBorder = isDarkMode ? `${tagColor}40` : `${tagColor}30`;
+        item.style.background = baseBackground;
+        item.style.borderColor = baseBorder;
         item.style.transform = '';
         item.style.boxShadow = '';
       }
@@ -1264,7 +1292,7 @@
     Object.assign(n.style, {
       position: "fixed", top: "10px", left: "50%", transform: "translateX(-50%)",
       background: "rgba(0,0,0,.85)", color: "#fff", padding: "8px 10px",
-      borderRadius: "8px", zIndex: 999999, fontFamily: "system-ui", fontSize: "12px"
+      borderRadius: "8px", zIndex: 999999, fontFamily: "'Familjen Grotesk', system-ui", fontSize: "12px"
     });
     document.body.appendChild(n);
     setTimeout(() => n.remove(), ms);
@@ -1396,7 +1424,7 @@
       Object.assign(_progressEl.style, {
         position: "fixed", top: "10px", left: "50%", transform: "translateX(-50%)",
         background: "rgba(20,20,20,.92)", color: "#fff", padding: "8px 10px",
-        borderRadius: "8px", zIndex: 999999, fontFamily: "system-ui", fontSize: "12px",
+        borderRadius: "8px", zIndex: 999999, fontFamily: "'Familjen Grotesk', system-ui", fontSize: "12px",
         boxShadow: "0 2px 8px rgba(0,0,0,.35)"
       });
       document.body.appendChild(_progressEl);
@@ -1405,6 +1433,86 @@
     if (_progressTimer) clearTimeout(_progressTimer);
     _progressTimer = setTimeout(() => progressToast(""), 2500);
   }
+
+  // === Theme Management ===
+  let isDarkMode = false;
+  
+  function getThemeStyles() {
+    if (isDarkMode) {
+      return {
+        dropdown: {
+          background: 'rgba(0, 0, 0, 0.98)',
+          border: '1px solid rgba(18, 18, 18, 0.47)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4)'
+        },
+        tagItem: {
+          background: '#0f0f0f',
+          borderColor: '#1a1a1a',
+          hoverBackground: '#1a1a1a'
+        },
+        text: {
+          primary: '#ffffff',
+          secondary: '#9ca3af',
+          muted: '#4b5563'
+        },
+        footer: {
+          background: 'rgba(0, 0, 0, 0.9)',
+          borderColor: 'rgba(0, 0, 0, 0.9)'
+        }
+      };
+    } else {
+      return {
+        dropdown: {
+          background: 'rgba(255, 255, 255, 0.85)',
+          border: 'none',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)'
+        },
+        tagItem: {
+          background: '#ffffff',
+          borderColor: 'rgba(0, 0, 0, 0.04)',
+          hoverBackground: 'rgba(248, 249, 250, 0.8)'
+        },
+        text: {
+          primary: '#1f2937',
+          secondary: '#6b7280',
+          muted: '#9ca3af'
+        },
+        footer: {
+          background: 'transparent',
+          borderColor: 'transparent'
+        }
+      };
+    }
+  }
+  
+  function toggleTheme() {
+    isDarkMode = !isDarkMode;
+    console.log('Taggle: Theme toggled, isDarkMode:', isDarkMode);
+    // Save preference to localStorage
+    localStorage.setItem('taggle-dark-mode', isDarkMode.toString());
+    
+    // Update any visible dropdowns
+    const dropdown = document.getElementById('taggle-tag-selector');
+    if (dropdown && dropdown.style.display !== 'none') {
+      // Re-render the dropdown with new theme
+      const currentElement = dropdown._currentElement;
+      if (currentElement) {
+        hideTagSelector();
+        setTimeout(() => showTagSelector(currentElement), 50);
+      }
+    }
+  }
+  
+  // Load theme preference on startup
+  function initializeTheme() {
+    const savedTheme = localStorage.getItem('taggle-dark-mode');
+    if (savedTheme === 'true') {
+      isDarkMode = true;
+    }
+  }
+  
+  // Initialize theme when content script loads
+  initializeTheme();
 
   // === Event listeners for tag selector ===
   
@@ -1425,6 +1533,14 @@
       } else {
         console.log("Taggle: No active editable element found");
       }
+    }
+    
+    // Ctrl+D to toggle dark mode
+    if (e.key === 'd' && (e.ctrlKey || e.metaKey) && tagSelectorActive) {
+      e.preventDefault();
+      toggleTheme();
+      toast(`Taggle: ${isDarkMode ? 'Dark' : 'Light'} mode enabled`);
+      return;
     }
 
     // Handle tag selector navigation when active
