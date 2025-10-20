@@ -136,6 +136,25 @@ export async function addContext(tagId, contextData) {
   return item;
 }
 
+export async function updateContext(tagId, contextId, updates) {
+  const { [CTX_KEY]: ctxMap = {} } = await chrome.storage.local.get(CTX_KEY);
+  
+  if (!ctxMap[tagId]) {
+    return null;
+  }
+  
+  const contextIndex = ctxMap[tagId].findIndex(ctx => ctx.id === contextId);
+  if (contextIndex === -1) {
+    return null;
+  }
+  
+  // Update the context with new properties
+  ctxMap[tagId][contextIndex] = { ...ctxMap[tagId][contextIndex], ...updates };
+  
+  await chrome.storage.local.set({ [CTX_KEY]: ctxMap });
+  return ctxMap[tagId][contextIndex];
+}
+
 // ---------- Context counting ----------
 export async function getContextTypeCounts(tagId) {
   try {

@@ -32,13 +32,13 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js": ["rag-system.js", "content.js"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["lib/pdf.worker.min.js", "lib/pdf.min.js", "lib/pdf-loader.js", "calendar-service-v3.js", "calendar-sync.js", "gc-logo.png", "gmail-service.js", "gmail-sync.js", "email-logo.png"],
+      "resources": ["lib/pdf.worker.min.js","lib/pdf.min.js","lib/pdf-loader.js","calendar-service-v3.js","calendar-sync.js","gc-logo.png","gmail-service.js","gmail-sync.js","email-logo.png","folder-watcher.js","rag-system.js"],
       "matches": ["<all_urls>"]
     }
   ]

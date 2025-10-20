@@ -132,6 +132,31 @@
 
   // Load dynamic services
   loadDynamicServices();
+  // Load RAG system for semantic search
+  const loadRAGSystem = async () => {
+    try {
+      // Load RAG system script
+      const ragScript = document.createElement('script');
+      ragScript.src = chrome.runtime.getURL('rag-system.js');
+      document.head.appendChild(ragScript);
+
+      // Wait for RAG system to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Initialize RAG system if available
+      if (window.RAGSystem) {
+        window.taggleRAG = new window.RAGSystem();
+        await window.taggleRAG.initialize();
+        console.log('Taggle RAG: System initialized in content script');
+      }
+    } catch (error) {
+      console.warn("Taggle: Could not load RAG system:", error);
+    }
+  };
+
+  // Load services
+  loadCalendarServices();
+  loadRAGSystem();
 
   // --- Helpers ---------------------------------------------------------------
 
@@ -581,13 +606,42 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       console.log("Taggle: Final context data - texts:", textParts.length, "images:", images.length);
       
       let textBlob = textParts.join("\n---\n").trim();
-      if (textBlob.length > maxChars) textBlob = textBlob.slice(0, maxChars) + "\n[...]";
       
-      return { textBlob, images };
+      // RAG System Integration - Check for large context
+      let ragAnalysis = null;
+      if (window.RAGSystem) {
+        const ragSystem = new window.RAGSystem();
+        await ragSystem.initialize();
+        
+        // Analyze the full text before truncation
+        const fullContextData = { textBlob, images };
+        ragAnalysis = await ragSystem.analyzeContextData(fullContextData);
+        
+        if (ragAnalysis.isLargeContext) {
+          console.log("Taggle: Large context detected, will use RAG when queried");
+          console.log("Taggle: Context analysis:", ragAnalysis);
+          // RAG processing will happen on-demand during @ tag queries
+        }
+      }
+      
+      // Apply character limit if RAG is not available or failed
+      if (!ragAnalysis || !ragAnalysis.isLargeContext) {
+        if (textBlob.length > maxChars) {
+          textBlob = textBlob.slice(0, maxChars) + "\n[...]";
+        }
+      }
+      
+      return { 
+        textBlob, 
+        images, 
+        ragAnalysis,
+        isLargeContext: ragAnalysis?.isLargeContext || false,
+        totalChars: ragAnalysis?.totalChars || textBlob.length
+      };
     } catch (error) {
       if (error.message.includes('Extension context invalidated')) {
         console.log("Taggle: Extension context invalidated, returning empty context data");
-        return { textBlob: "", images: [] };
+        return { textBlob: "", images: [], ragAnalysis: null, isLargeContext: false };
       }
       throw error;
     }
@@ -2007,11 +2061,65 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         console.log("Taggle: Context preview:", contextData.textBlob.substring(0, 200) + "...");
         
         if (!hasImages) {
-          // Text-only prompt
-          finalPromptText = makeFinalPrompt({
-            contextText: contextData.textBlob,
-            userPrompt: tagInfo.userPrompt
-          });
+          // Check if context is large enough for RAG processing
+          if (contextData.textBlob.length > 25000 && window.taggleRAG) {
+            console.log("Taggle RAG: Large context detected, using semantic search");
+            
+            // Check if API key is available
+            if (!window.taggleRAG.hasApiKey()) {
+              console.warn("Taggle RAG: No API key available, falling back to full context");
+              finalPromptText = makeFinalPrompt({
+                contextText: contextData.textBlob,
+                userPrompt: tagInfo.userPrompt
+              });
+            } else {
+              try {
+                // Ensure RAG processing is complete first
+                const contextId = `tag_${tag.id}_context`;
+                await window.taggleRAG.processLargeContext(contextData.textBlob, contextId, tag.id);
+              
+              // Now search for relevant chunks
+              const ragResults = await window.taggleRAG.searchChunks(tagInfo.userPrompt, tag.id, 3);
+              
+              if (ragResults && ragResults.length > 0) {
+                // Combine relevant chunks as context
+                const relevantContext = ragResults.map((result, index) => 
+                  `[Relevant Context ${index + 1} (similarity: ${result.score.toFixed(2)})]\n${result.chunk.text}`
+                ).join('\n\n');
+                
+                console.log(`Taggle RAG: Found ${ragResults.length} relevant chunks`);
+                console.log("Taggle RAG: Relevant context preview:", relevantContext.substring(0, 300) + "...");
+                
+                // Use RAG results as context instead of full text
+                finalPromptText = makeFinalPrompt({
+                  contextText: relevantContext,
+                  userPrompt: tagInfo.userPrompt
+                });
+              } else {
+                console.log("Taggle RAG: No relevant chunks found, falling back to full context");
+                // Fallback to original context if no RAG results
+                finalPromptText = makeFinalPrompt({
+                  contextText: contextData.textBlob,
+                  userPrompt: tagInfo.userPrompt
+                });
+              }
+            } catch (ragError) {
+              console.error("Taggle RAG: Search failed, falling back to full context:", ragError);
+              // Fallback to original context if RAG fails
+              finalPromptText = makeFinalPrompt({
+                contextText: contextData.textBlob,
+                userPrompt: tagInfo.userPrompt
+              });
+            }
+            }
+          } else {
+            // Standard text-only prompt for smaller contexts
+            finalPromptText = makeFinalPrompt({
+              contextText: contextData.textBlob,
+              userPrompt: tagInfo.userPrompt
+            });
+          }
+          
           console.log("Taggle: Final prompt length:", finalPromptText.length);
           console.log("Taggle: Final prompt preview:", finalPromptText.substring(0, 300) + "...");
         }
