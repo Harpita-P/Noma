@@ -1,7 +1,10 @@
 // popup.js - Compact version of options.js for popup interface
-import { getAllTags, createTag, deleteTag, getContexts, addContext, getAllFolders, addFolderWatch, removeFolderWatch } from "./storage.js";
+import { getAllTags, createTag, deleteTag, getContexts, addContext, updateContext, getAllFolders, addFolderWatch, removeFolderWatch } from "./storage.js";
 
 const els = {
+  openaiKey: document.getElementById("openai-key"),
+  saveOpenaiKey: document.getElementById("save-openai-key"),
+  openaiKeyStatus: document.getElementById("openai-key-status"),
   name: document.getElementById("tag-name"),
   create: document.getElementById("create"),
   list: document.getElementById("list"),
@@ -31,6 +34,7 @@ const els = {
   calendarSyncAll: document.getElementById("calendar-sync-all"),
 };
 
+els.saveOpenaiKey.onclick = onSaveOpenAIKey;
 els.create.onclick = onCreate;
 els.refresh.onclick = render;
 els.pdfFile.onchange = onPdfFileChange;
@@ -65,7 +69,106 @@ const calendarSyncScript = document.createElement('script');
 calendarSyncScript.src = 'calendar-sync.js';
 document.head.appendChild(calendarSyncScript);
 
+// Load RAG system
+const ragScript = document.createElement('script');
+ragScript.src = 'rag-system.js';
+document.head.appendChild(ragScript);
+
+// Global RAG system instance
+let ragSystem = null;
+
+// Initialize RAG system
+async function initializeRAG() {
+  try {
+    // Wait for RAG system to load
+    let attempts = 0;
+    while (!window.RAGSystem && attempts < 50) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    
+    if (!window.RAGSystem) {
+      console.warn('Taggle RAG: RAG system not loaded');
+      return null;
+    }
+    
+    ragSystem = new window.RAGSystem();
+    await ragSystem.initialize();
+    console.log('Taggle RAG: System initialized successfully');
+    return ragSystem;
+  } catch (error) {
+    console.error('Taggle RAG: Initialization failed:', error);
+    return null;
+  }
+}
+
 render();
+
+// Check and display API key status on load
+async function checkApiKeyStatus() {
+  try {
+    const result = await chrome.storage.local.get(['taggle-openai-key']);
+    const hasKey = !!result['taggle-openai-key'];
+    
+    if (hasKey) {
+      els.openaiKeyStatus.textContent = '✓ API key configured (RAG enabled for large contexts)';
+      els.openaiKeyStatus.style.color = '#28a745';
+    } else {
+      els.openaiKeyStatus.textContent = 'Required for semantic search on large contexts (25k+ chars)';
+      els.openaiKeyStatus.style.color = '#6c757d';
+    }
+  } catch (error) {
+    console.error('Failed to check API key status:', error);
+  }
+}
+
+// Check API key status on popup load
+checkApiKeyStatus();
+
+async function onSaveOpenAIKey() {
+  const apiKey = els.openaiKey.value.trim();
+  
+  if (!apiKey) {
+    els.openaiKeyStatus.textContent = 'Please enter an API key';
+    return;
+  }
+  
+  if (!apiKey.startsWith('sk-')) {
+    els.openaiKeyStatus.textContent = 'API key should start with "sk-"';
+    return;
+  }
+  
+  try {
+    els.saveOpenaiKey.disabled = true;
+    els.openaiKeyStatus.textContent = 'Saving...';
+    
+    // Save to storage
+    await chrome.storage.local.set({ 'taggle-openai-key': apiKey });
+    
+    // Update RAG system if initialized
+    if (ragSystem) {
+      await ragSystem.setOpenAIKey(apiKey);
+    }
+    
+    els.openaiKeyStatus.textContent = '✓ API key saved successfully';
+    els.openaiKey.value = ''; // Clear the input for security
+    
+    // Update status to show configured state
+    setTimeout(() => {
+      checkApiKeyStatus();
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Failed to save OpenAI API key:', error);
+    els.openaiKeyStatus.textContent = '❌ Failed to save API key';
+    
+    setTimeout(() => {
+      els.openaiKeyStatus.textContent = 'Required for semantic search on large contexts (25k+ chars)';
+    }, 3000);
+  } finally {
+    els.saveOpenaiKey.disabled = false;
+  }
+}
 
 async function onCreate() {
   const raw = (els.name.value || "").trim();
@@ -104,12 +207,34 @@ async function render() {
   const parts = [];
   for (const t of tags) {
     const ctx = await getContexts(t.id);
+    
+    // Check if any context is large enough for RAG processing
+    const largeContexts = ctx.filter(c => {
+      const textLength = (c.text || c.selection || '').length;
+      return textLength > 25000;
+    });
+    
+    // Auto-process large contexts through RAG if not already processed
+    if (largeContexts.length > 0) {
+      await processLargeContextsForTag(t.id, t.name, largeContexts);
+    }
+    
+    // Calculate total text length for display
+    const totalTextLength = ctx.reduce((sum, c) => {
+      return sum + (c.text || c.selection || '').length;
+    }, 0);
+    
+    const ragIndicator = largeContexts.length > 0 ? 
+      `<span style="color: #10b981; font-size: 10px; margin-left: 4px;" title="RAG-enabled for large content">🧠</span>` : '';
+    
     parts.push(`
       <div class="tag-item">
         <div class="tag-header">
           <div>
             <span class="tag-name">@${t.name}</span>
             <span class="tag-count">${ctx.length} context${ctx.length !== 1 ? 's' : ''}</span>
+            ${ragIndicator}
+            ${totalTextLength > 25000 ? `<div style="font-size: 10px; color: #6b7280; margin-top: 2px;">${Math.round(totalTextLength/1000)}k chars</div>` : ''}
           </div>
           <button data-del="${t.id}" class="btn btn-small">Delete</button>
         </div>
@@ -446,6 +571,88 @@ function escapeHtml(s) {
   return (s || "").replace(/[&<>"]/g, ch =>
     ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;" }[ch])
   );
+}
+
+// Process large contexts through RAG pipeline
+async function processLargeContextsForTag(tagId, tagName, largeContexts) {
+  try {
+    // Initialize RAG system if not already done
+    if (!ragSystem) {
+      ragSystem = await initializeRAG();
+      if (!ragSystem) {
+        console.warn('Taggle RAG: Cannot process large contexts - RAG system not available');
+        return;
+      }
+    }
+    
+    for (const context of largeContexts) {
+      // Check if this context is already processed (has RAG metadata)
+      if (context.ragProcessed) {
+        continue;
+      }
+      
+      const textContent = context.text || context.selection || '';
+      if (textContent.length <= 25000) {
+        continue;
+      }
+      
+      console.log(`Taggle RAG: Processing large context for @${tagName} (${textContent.length} chars)`);
+      
+      try {
+        // Generate full text embedding
+        const fullTextEmbedding = await ragSystem.generateFullTextEmbedding(textContent);
+        
+        // Create chunks
+        const contextId = `tag_${tagId}_context_${context.id || Date.now()}`;
+        const chunks = await ragSystem.chunkText(textContent, contextId);
+        
+        // Store chunks with shared embedding
+        const embeddings = new Array(chunks.length).fill(fullTextEmbedding);
+        await ragSystem.storeChunksWithEmbeddings(chunks, embeddings, tagId);
+        
+        // Mark context as RAG processed and update in storage
+        const updates = {
+          ragProcessed: true,
+          ragChunks: chunks.length,
+          ragEmbeddingDimensions: fullTextEmbedding.length
+        };
+        
+        await updateContext(tagId, context.id, updates);
+        
+        console.log(`Taggle RAG: Successfully processed context - ${chunks.length} chunks created`);
+        
+      } catch (error) {
+        console.error(`Taggle RAG: Failed to process context for @${tagName}:`, error);
+      }
+    }
+    
+  } catch (error) {
+    console.error('Taggle RAG: Error in processLargeContextsForTag:', error);
+  }
+}
+
+// Search RAG system for relevant chunks
+async function searchRAGForTag(tagId, query, topK = 3) {
+  try {
+    if (!ragSystem) {
+      ragSystem = await initializeRAG();
+      if (!ragSystem) {
+        return [];
+      }
+    }
+    
+    const results = await ragSystem.searchChunks(query, tagId, topK);
+    return results.map(result => ({
+      text: result.chunk.text,
+      similarity: result.score,
+      chunkIndex: result.chunk.chunkIndex,
+      contextId: result.chunk.contextId
+    }));
+    
+  } catch (error) {
+    console.error('Taggle RAG: Search failed:', error);
+    return [];
+  }
 }
 
 // ===== CALENDAR FUNCTIONS =====
