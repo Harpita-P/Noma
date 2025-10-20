@@ -37,7 +37,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["lib/pdf.worker.min.js", "lib/pdf.min.js", "lib/pdf-loader.js", "folder-watcher.js", "calendar-service-v3.js", "calendar-sync.js"],
+      "resources": ["lib/pdf.worker.min.js", "lib/pdf.min.js", "lib/pdf-loader.js", "folder-watcher.js", "calendar-service-v3.js", "calendar-sync.js", "gc-logo.png"],
       "matches": ["<all_urls>"]
     }
   ]

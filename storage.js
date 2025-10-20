@@ -153,11 +153,23 @@ export async function getAllTagsWithContextCounts() {
     const tags = await getAllTags();
     const tagsWithCounts = [];
 
+    // Get calendar tags to check which tags are calendar tags
+    let calendarTags = {};
+    try {
+      const { 'taggle-calendar-tags': storedCalendarTags = {} } = await chrome.storage.local.get('taggle-calendar-tags');
+      calendarTags = storedCalendarTags;
+    } catch (error) {
+      console.warn('Taggle: Could not load calendar tags:', error);
+    }
+
     for (const tag of tags) {
       const counts = await getContextTypeCounts(tag.id);
+      const isCalendarTag = !!calendarTags[tag.id];
+      
       tagsWithCounts.push({
         ...tag,
-        contextCounts: counts
+        contextCounts: counts,
+        isCalendarTag: isCalendarTag
       });
     }
 

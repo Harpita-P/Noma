@@ -403,11 +403,23 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       const { [TAGS_KEY]: tags = [] } = await chrome.storage.local.get(TAGS_KEY);
       const tagsWithCounts = [];
       
+      // Get calendar tags to check which tags are calendar tags
+      let calendarTags = {};
+      try {
+        const { 'taggle-calendar-tags': storedCalendarTags = {} } = await chrome.storage.local.get('taggle-calendar-tags');
+        calendarTags = storedCalendarTags;
+      } catch (error) {
+        console.warn('Taggle: Could not load calendar tags:', error);
+      }
+      
       for (const tag of tags) {
         const counts = await getContextTypeCounts(tag.id);
+        const isCalendarTag = !!calendarTags[tag.id];
+        
         tagsWithCounts.push({
           ...tag,
-          contextCounts: counts
+          contextCounts: counts,
+          isCalendarTag: isCalendarTag
         });
       }
       
@@ -702,129 +714,133 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       storedCaretPosition: storedCaretPosition
     });
 
+    // Sort tags: dynamic tags (calendar) first, then regular tags
+    const sortedTags = tagsWithCounts.sort((a, b) => {
+      // Dynamic tags first
+      if (a.isCalendarTag && !b.isCalendarTag) return -1;
+      if (!a.isCalendarTag && b.isCalendarTag) return 1;
+      // Within same type, sort alphabetically
+      return a.name.localeCompare(b.name);
+    });
+
     // Distribute colors to avoid adjacent duplicates
-    const tagsWithColors = distributeTagColors(tagsWithCounts);
+    const tagsWithColors = distributeTagColors(sortedTags);
     currentTagColors = tagsWithColors;
+
+    // Separate dynamic and regular tags for UI grouping
+    const dynamicTags = tagsWithColors.filter(tag => tag.isCalendarTag);
+    const regularTags = tagsWithColors.filter(tag => !tag.isCalendarTag);
+
+    // Helper function to render a tag
+    const renderTag = (tag, index, isDynamic = false) => {
+      const tagColor = tag.color;
+      const counts = tag.contextCounts || { text: 0, pdf: 0, image: 0, calendar: 0, total: 0 };
+      const isCalendarTag = tag.isCalendarTag || false;
+      
+      // Create context type indicators
+      const indicators = [];
+      
+      if (isCalendarTag) {
+        // Calendar icon as tilted tile for dynamic tags
+        indicators.push(`<img src="${chrome.runtime.getURL('gc-logo.png')}" style="
+          width: 18px;
+          height: 18px;
+          margin-right: 6px;
+          border-radius: 3px;
+          transform: rotate(-8deg);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+        " title="Google Calendar Tag" />`);
+      } else {
+        // Regular numbered indicators
+        if (counts.text > 0) {
+          indicators.push(`<span style="
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 14px; height: 14px; border-radius: 3px; background: #3b82f6;
+            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
+          " title="Text: ${counts.text}">${counts.text}</span>`);
+        }
+        if (counts.pdf > 0) {
+          indicators.push(`<span style="
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 14px; height: 14px; border-radius: 3px; background: #ef4444;
+            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
+          " title="PDF: ${counts.pdf}">${counts.pdf}</span>`);
+        }
+        if (counts.image > 0) {
+          indicators.push(`<span style="
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 14px; height: 14px; border-radius: 3px; background: #eab308;
+            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
+          " title="Images: ${counts.image}">${counts.image}</span>`);
+        }
+        if (counts.calendar > 0) {
+          indicators.push(`<span style="
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 14px; height: 14px; border-radius: 3px; background: #10b981;
+            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
+          " title="Calendar: ${counts.calendar}">${counts.calendar}</span>`);
+        }
+      }
+      
+      const theme = getThemeStyles();
+      const baseBackground = isDarkMode ? `${tagColor}20` : `${tagColor}15`;
+      const baseBorder = isDarkMode ? `${tagColor}40` : `${tagColor}30`;
+      const selectedBackground = isDarkMode ? `${tagColor}30` : `${tagColor}25`;
+      const selectedBorder = isDarkMode ? `${tagColor}60` : `${tagColor}50`;
+      const textColor = tagColor;
+      
+      return `<div class="taggle-tag-item" data-tag="${tag.name}" data-index="${index}" style="
+        padding: 4px 12px; cursor: pointer; border-radius: 16px;
+        background: ${baseBackground}; border: 1px solid ${baseBorder};
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 500; font-size: 12px; color: ${textColor};
+        white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+        ${index === 0 ? `background: ${selectedBackground}; border-color: ${selectedBorder}; transform: scale(1.02);` : ''}
+      ">
+        <span style="
+          display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+          background: ${tagColor}; margin-right: 3px; opacity: 0.9;
+        "></span>
+        @${tag.name}
+        ${indicators.length > 0 ? `
+          <span class="tag-indicators" data-tag-id="${tag.id}" style="display: inline-flex; align-items: center; gap: 2px; margin-left: 6px;">
+            ${indicators.join('')}
+          </span>
+        ` : ''}
+      </div>`;
+    };
 
     tagDropdown.innerHTML = `
       <div style="
-        padding: 12px 16px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        max-height: 280px;
-        overflow-y: auto;
+        padding: 12px 16px; display: flex; flex-direction: column; gap: 12px;
+        max-height: 280px; overflow-y: auto;
         background: ${isDarkMode ? '#0a0a0a' : '#ffffff'};
         border-radius: 12px 12px 0 0;
       ">
-        ${tagsWithColors.map((tag, index) => {
-          const tagColor = tag.color;
-          const counts = tag.contextCounts || { text: 0, pdf: 0, image: 0, total: 0 };
-          
-          // Create context type indicators with numbers inside
-          const indicators = [];
-          if (counts.text > 0) {
-            indicators.push(`<span style="
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              min-width: 14px;
-              height: 14px;
-              border-radius: 3px;
-              background: #3b82f6;
-              margin-right: 3px;
-              font-size: 8px;
-              font-weight: 600;
-              color: white;
-              line-height: 1;
-            " title="Text: ${counts.text}">${counts.text}</span>`);
-          }
-          if (counts.pdf > 0) {
-            indicators.push(`<span style="
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              min-width: 14px;
-              height: 14px;
-              border-radius: 3px;
-              background: #ef4444;
-              margin-right: 3px;
-              font-size: 8px;
-              font-weight: 600;
-              color: white;
-              line-height: 1;
-            " title="PDF: ${counts.pdf}">${counts.pdf}</span>`);
-          }
-          if (counts.image > 0) {
-            indicators.push(`<span style="
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              min-width: 14px;
-              height: 14px;
-              border-radius: 3px;
-              background: #eab308;
-              margin-right: 3px;
-              font-size: 8px;
-              font-weight: 600;
-              color: white;
-              line-height: 1;
-            " title="Images: ${counts.image}">${counts.image}</span>`);
-          }
-          
-          const theme = getThemeStyles();
-          const baseBackground = isDarkMode ? `${tagColor}20` : `${tagColor}15`;
-          const baseBorder = isDarkMode ? `${tagColor}40` : `${tagColor}30`;
-          const selectedBackground = isDarkMode ? `${tagColor}30` : `${tagColor}25`;
-          const selectedBorder = isDarkMode ? `${tagColor}60` : `${tagColor}50`;
-          const textColor = tagColor; // Keep original tag colors in both light and dark mode
-          
-          if (index === 0) {
-            console.log('Taggle: Rendering first tag, isDarkMode:', isDarkMode, 'baseBackground:', baseBackground, 'tagColor:', tagColor);
-          }
-          
-          return `<div class="taggle-tag-item" data-tag="${tag.name}" data-index="${index}" style="
-            padding: 4px 12px;
-            cursor: pointer;
-            border-radius: 16px;
-            background: ${baseBackground};
-            border: 1px solid ${baseBorder};
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            font-weight: 500;
-            font-size: 12px;
-            color: ${textColor};
-            white-space: nowrap;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            ${index === 0 ? `background: ${selectedBackground}; border-color: ${selectedBorder}; transform: scale(1.02);` : ''}
-          ">
-            <span style="
-              display: inline-block;
-              width: 5px;
-              height: 5px;
-              border-radius: 50%;
-              background: ${isDarkMode ? tagColor : tagColor};
-              margin-right: 3px;
-              opacity: 0.9;
-            "></span>
-            @${tag.name}
-            ${indicators.length > 0 ? `
-              <span class="tag-indicators" data-tag-id="${tag.id}" style="display: inline-flex; align-items: center; gap: 2px; margin-left: 6px;">
-                ${indicators.join('')}
-              </span>
-            ` : ''}
-          </div>`;
-        }).join('')}
+        ${dynamicTags.length > 0 ? `
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${dynamicTags.map((tag, index) => renderTag(tag, index, true)).join('')}
+          </div>
+        ` : ''}
+        ${dynamicTags.length > 0 && regularTags.length > 0 ? `
+          <div style="
+            height: 1px; background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+            margin: 4px 0;
+          "></div>
+        ` : ''}
+        ${regularTags.length > 0 ? `
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${regularTags.map((tag, index) => renderTag(tag, dynamicTags.length + index, false)).join('')}
+          </div>
+        ` : ''}
       </div>
       <div style="
         padding: 8px 16px;
         background: ${getThemeStyles().footer.background};
         border-top: 1px solid ${getThemeStyles().footer.borderColor};
-        font-size: 10px;
-        color: ${getThemeStyles().text.muted};
-        text-align: center;
-        backdrop-filter: blur(10px);
+        font-size: 10px; color: ${getThemeStyles().text.muted};
+        text-align: center; backdrop-filter: blur(10px);
       ">
         ↑↓ Navigate • Enter Select • Esc Cancel • Ctrl+D Dark Mode
       </div>
@@ -889,7 +905,15 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       indicatorContainer.onmouseenter = () => {
         console.log("Taggle: Hovering over indicators for tag ID:", tagId);
         if (tagId) {
-          setTimeout(() => showContextPreview(tagId, tagElement), 100);
+          // Check if this is a dynamic tag (calendar tag)
+          const tag = currentTagColors.find(t => t.id === tagId);
+          if (tag && tag.isCalendarTag) {
+            // Show simple info panel for dynamic tags
+            setTimeout(() => showDynamicTagInfo(tag, tagElement), 100);
+          } else {
+            // Show regular context preview for normal tags
+            setTimeout(() => showContextPreview(tagId, tagElement), 100);
+          }
         }
       };
       
@@ -948,6 +972,61 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     tagSelectorActive = false;
     currentElement = null;
     // Don't clear excluded contexts here - they should persist until next tag selector session
+  }
+
+  function showDynamicTagInfo(tag, tagElement) {
+    console.log("Taggle: showDynamicTagInfo called for tag:", tag.name);
+    
+    if (!contextPreviewPanel) {
+      contextPreviewPanel = createContextPreviewPanel();
+    }
+
+    // Create simple info panel for dynamic tags
+    let infoContent = '';
+    if (tag.isCalendarTag) {
+      infoContent = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        ">
+          <img src="${chrome.runtime.getURL('gc-logo.png')}" style="
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+          " />
+          <div style="
+            font-size: 10px;
+            color: #fff;
+            font-weight: 600;
+          ">Google Calendar</div>
+        </div>
+        <div style="
+          font-size: 9px;
+          color: #ccc;
+          line-height: 1.4;
+          text-align: center;
+        ">Connected to your Google Calendar<br>Automatically syncs data</div>
+      `;
+    }
+
+    contextPreviewPanel.innerHTML = `
+      <div style="padding: 4px;">
+        ${infoContent}
+      </div>
+    `;
+    
+    // Position and show the panel
+    const tagRect = tagElement.getBoundingClientRect();
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+    
+    contextPreviewPanel.style.left = (tagRect.right + scrollLeft + 8) + 'px';
+    contextPreviewPanel.style.top = (tagRect.top + scrollTop) + 'px';
+    contextPreviewPanel.style.display = 'block';
+    
+    console.log("Taggle: Showing dynamic tag info panel");
   }
 
   function hideContextPreview() {
