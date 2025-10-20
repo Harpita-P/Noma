@@ -3,87 +3,136 @@
   <head>
     <meta charset="utf-8" />
     <title>Taggle</title>
-    <link href="https://api.fontshare.com/v2/css?f[]=familjen-grotesk@400&display=swap" rel="stylesheet">
+    <link href="https://api.fontshare.com/v2/css?f[]=ranade@400,500,600&display=swap" rel="stylesheet">
     <style>
       body { 
-        font-family: 'Familjen Grotesk', sans-serif;
+        font-family: 'Ranade', sans-serif;
         margin: 0; 
         padding: 0;
-        min-width: 1000px;
-        min-height: 600px;
-        background: #ffffff;
-        overflow-y: auto;
+        width: 100vw;
+        height: 100vh;
+        background: #f8fafc;
+        overflow: hidden;
         color: #1f2937;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      /* Custom scrollbar styling - positioned at screen edge */
+      .scrollable-content::-webkit-scrollbar {
+        width: 8px;
+      }
+      
+      .scrollable-content::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 0;
+      }
+      
+      .scrollable-content::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+        transition: background 0.2s ease;
+      }
+      
+      .scrollable-content::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+      
+      /* Firefox scrollbar */
+      .scrollable-content {
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
       }
       
       .header {
-        background: #ffffff;
-        border-bottom: 1px solid #e5e7eb;
-        padding: 16px 24px;
+        background: transparent;
+        padding: 20px 0;
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-shrink: 0;
       }
       
-      .back-arrow {
-        width: 20px;
-        height: 20px;
-        color: #6b7280;
-        cursor: pointer;
+      .header-content {
+        max-width: 1200px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 0 32px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 12px;
       }
       
       h1 { 
         font-size: 18px; 
         font-weight: 600;
-        margin: 0;
+        margin: 0 0 0 -29px;
         color: #1f2937;
       }
       
+      .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 0 32px;
+      }
+      
       .main-content {
-        padding: 24px;
-        max-width: 950px;
+        padding: 32px;
+        max-width: 1200px;
         width: 100%;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        margin-top: 0;
+        margin-bottom: 32px;
       }
       
       .form-group {
-        margin-bottom: 24px;
+        margin-bottom: 32px;
       }
       
       .form-label {
         display: block;
         font-size: 14px;
         font-weight: 500;
-        color: #374151;
+        color: #000000;
         margin-bottom: 8px;
       }
       
       .form-row {
         display: flex;
-        gap: 12px;
-        align-items: flex-start;
+        gap: 16px;
+        align-items: flex-end;
+        max-width: 600px;
       }
       
       .form-row.two-col {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 16px;
+        gap: 20px;
+        max-width: 500px;
       }
       
       input[type=text], select, input[type=file] {
         width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
+        padding: 10px 14px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
         font-size: 14px;
         background: #ffffff;
-        transition: border-color 0.15s ease;
+        transition: all 0.2s ease;
         font-family: inherit;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       }
       
       input[type=text]:focus, select:focus {
         outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        border-color: #000000;
+        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
       }
       
       input[type=file] {
@@ -95,22 +144,26 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 8px 16px;
+        padding: 10px 20px;
         border: 1px solid #d1d5db;
-        border-radius: 6px;
+        border-radius: 8px;
         font-size: 14px;
         font-weight: 500;
         background: #ffffff;
         color: #374151;
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: all 0.2s ease;
         font-family: inherit;
         white-space: nowrap;
+        min-width: 120px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       }
       
       .btn:hover:not(:disabled) {
         background: #f9fafb;
         border-color: #9ca3af;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
       
       .btn:disabled {
@@ -119,19 +172,27 @@
       }
       
       .btn-primary {
-        background: #3b82f6;
-        border-color: #3b82f6;
+        background: #000000;
+        border-color: #000000;
         color: #ffffff;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
       
       .btn-primary:hover:not(:disabled) {
-        background: #2563eb;
-        border-color: #2563eb;
+        background: #1f2937;
+        border-color: #1f2937;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
       }
       
       .btn-small {
-        padding: 4px 8px;
+        padding: 6px 12px;
         font-size: 12px;
+        border-radius: 6px;
+        min-width: 80px;
       }
       
       .status-text {
@@ -142,24 +203,39 @@
       
       .tags-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        margin-top: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 16px;
+        margin-top: 20px;
       }
       
       .tag-item {
         background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
+        border: 1px solid #60a5fa30;
+        border-radius: 12px;
         padding: 16px;
-        transition: border-color 0.15s ease;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         min-height: 120px;
         display: flex;
         flex-direction: column;
+        position: relative;
+      }
+      
+      .tag-item::before {
+        content: '';
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #60a5fa;
+        opacity: 0.8;
       }
       
       .tag-item:hover {
-        border-color: #d1d5db;
+        border-color: #60a5fa50;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(96, 165, 250, 0.15);
       }
       
       .tag-header {
@@ -172,15 +248,18 @@
       .tag-name {
         font-size: 15px;
         font-weight: 600;
-        color: #1f2937;
+        color: #60a5fa;
+        margin-left: 12px;
       }
       
       .tag-count {
-        font-size: 12px;
-        color: #6b7280;
-        background: #f3f4f6;
-        padding: 2px 6px;
-        border-radius: 4px;
+        font-size: 11px;
+        color: #60a5fa;
+        background: #60a5fa15;
+        padding: 3px 8px;
+        border-radius: 12px;
+        border: 1px solid #60a5fa30;
+        font-weight: 500;
       }
       
       .context-item {
@@ -250,19 +329,50 @@
       .divider {
         height: 1px;
         background: #e5e7eb;
-        margin: 32px 0;
+        margin: 40px 0;
       }
+      
+      /* Tag color variations matching content.js palette */
+      .tag-item:nth-child(6n+1) { border-color: #60a5fa30; } /* Light blue */
+      .tag-item:nth-child(6n+1)::before { background: #60a5fa; }
+      .tag-item:nth-child(6n+1) .tag-name { color: #60a5fa; }
+      .tag-item:nth-child(6n+1) .tag-count { background: #60a5fa15; border-color: #60a5fa30; color: #60a5fa; }
+      
+      .tag-item:nth-child(6n+2) { border-color: #ef444430; } /* Red */
+      .tag-item:nth-child(6n+2)::before { background: #ef4444; }
+      .tag-item:nth-child(6n+2) .tag-name { color: #ef4444; }
+      .tag-item:nth-child(6n+2) .tag-count { background: #ef444415; border-color: #ef444430; color: #ef4444; }
+      
+      .tag-item:nth-child(6n+3) { border-color: #fbbf2430; } /* Yellow */
+      .tag-item:nth-child(6n+3)::before { background: #fbbf24; }
+      .tag-item:nth-child(6n+3) .tag-name { color: #fbbf24; }
+      .tag-item:nth-child(6n+3) .tag-count { background: #fbbf2415; border-color: #fbbf2430; color: #fbbf24; }
+      
+      .tag-item:nth-child(6n+4) { border-color: #a855f730; } /* Purple */
+      .tag-item:nth-child(6n+4)::before { background: #a855f7; }
+      .tag-item:nth-child(6n+4) .tag-name { color: #a855f7; }
+      .tag-item:nth-child(6n+4) .tag-count { background: #a855f715; border-color: #a855f730; color: #a855f7; }
+      
+      .tag-item:nth-child(6n+5) { border-color: #f472b630; } /* Light pink */
+      .tag-item:nth-child(6n+5)::before { background: #f472b6; }
+      .tag-item:nth-child(6n+5) .tag-name { color: #f472b6; }
+      .tag-item:nth-child(6n+5) .tag-count { background: #f472b615; border-color: #f472b630; color: #f472b6; }
+      
+      .tag-item:nth-child(6n+6) { border-color: #fb923c30; } /* Orange */
+      .tag-item:nth-child(6n+6)::before { background: #fb923c; }
+      .tag-item:nth-child(6n+6) .tag-name { color: #fb923c; }
+      .tag-item:nth-child(6n+6) .tag-count { background: #fb923c15; border-color: #fb923c30; color: #fb923c; }
     </style>
   </head>
   <body>
     <div class="header">
-      <svg class="back-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-      </svg>
-      <h1>Taggle Settings</h1>
+      <div class="header-content">
+        <h1>Taggle Settings</h1>
+      </div>
     </div>
 
-    <div class="main-content">
+    <div class="scrollable-content">
+      <div class="main-content">
       <div class="form-group">
         <label class="form-label">Create Tag</label>
         <div class="form-row">
@@ -317,6 +427,7 @@
           <button id="refresh" class="btn btn-small">Refresh</button>
         </div>
         <div id="list" class="tags-grid"></div>
+      </div>
       </div>
     </div>
 

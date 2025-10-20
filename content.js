@@ -2,6 +2,8 @@
 // Behavior: In any focused editable, press Ctrl+Space (Cmd+Space on Mac) -> send field text to Gemini Nano -> replace entire field with result.
 
 (function () {
+
+  
   // Inject CSS for blue cursor
   const style = document.createElement('style');
   style.textContent = `
@@ -30,6 +32,126 @@
     ],
     expectedOutputs: [ { type: "text", languages: ["en"] } ]
   };
+
+
+  // === Prompt API helpers (add right after EXPECTED) ===========================
+
+// Pick the available API surface (new global LanguageModel or older window.ai)
+function getLM() {
+  // Prefer the new global API
+  if (typeof self !== 'undefined' && 'LanguageModel' in self) return self.LanguageModel;
+  // Fallback to older preview API shapes
+  if (typeof self !== 'undefined' && self.ai && self.ai.languageModel) {
+    // Wrap to look like the new API where possible
+    return {
+      availability: (...args) => self.ai.languageModel.capabilities?.(...args)?.then(c => {
+        // Map to new strings: readily/after-download/no  -> available/downloadable/unavailable
+        const v = c?.available;
+        return v === 'readily' ? 'available' : v === 'after-download' ? 'downloadable' : 'unavailable';
+      }) ?? Promise.resolve('unavailable'),
+      params: () => self.ai.languageModel.params?.() ?? Promise.resolve({}),
+      create: (opts = {}) => self.ai.languageModel.create({
+        systemPrompt: opts.initialPrompts?.find(p => p.role === 'system')?.content,
+        // monitor shim
+        monitor: opts.monitor,
+      })
+    };
+  }
+  return null;
+}
+
+// Use your EXPECTED modalities to build the session config
+function expectedToSessionOptions(expected) {
+  const opts = {};
+  if (expected?.expectedInputs) opts.expectedInputs = expected.expectedInputs;
+  if (expected?.expectedOutputs) opts.expectedOutputs = expected.expectedOutputs;
+  return opts;
+}
+
+// Create (and if needed download) a session. Shows progress via your progressToast().
+async function createSessionWithDownload(expected, { systemPrompt } = {}) {
+  const LM = getLM();
+  if (!LM) throw new Error("Prompt API not available in this context.");
+
+  // Ensure we pass the same modalities to availability() as to create()
+  const availability = await LM.availability(expectedToSessionOptions(EXPECTED));
+  if (availability === 'unavailable') {
+    throw new Error("Gemini Nano unavailable (Prompt API not enabled, policy blocked, or device unsupported).");
+  }
+
+  const options = {
+    ...expectedToSessionOptions(EXPECTED),
+    initialPrompts: systemPrompt ? [{ role: 'system', content: systemPrompt }] : undefined,
+    monitor(m) {
+      m.addEventListener('downloadprogress', (e) => {
+        const pct = Math.round((e.loaded || 0) * 100);
+        progressToast(`Downloading on-device model… ${pct}%`);
+        if (pct >= 100) setTimeout(() => progressToast("Model ready!"), 400);
+      });
+    }
+  };
+
+  // This user gesture already exists (Ctrl/Cmd+Space), so downloads are allowed.
+  const session = await LM.create(options);
+  return session;
+}
+
+// Text-only prompting
+async function runPrompt(finalPromptText, abortSignal) {
+  const session = await createSessionWithDownload(EXPECTED, { /* optional systemPrompt */ });
+
+  // Non-streamed for simplicity; you can switch to promptStreaming if you want live tokens
+  const result = await session.prompt(finalPromptText, { signal: abortSignal });
+  return typeof result === 'string' ? result : String(result);
+}
+
+// Multimodal prompting (images + text). If images aren’t supported, it falls back to text-only.
+async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
+  try {
+    // Build a multimodal EXPECTED on the fly (text + image in, text out)
+    const mmExpected = {
+      expectedInputs: [
+        { type: "text",  languages: ["en"] },
+        { type: "image" }
+      ],
+      expectedOutputs: [{ type: "text", languages: ["en"] }]
+    };
+
+    const session = await createSessionWithDownload(mmExpected, { /* optional systemPrompt */ });
+
+    // If you also want to include the big context text, add it as system or as a first append
+    const contextText = contextData.textBlob?.trim() || "";
+    if (contextText) {
+      await session.append([{
+        role: 'system',
+        content: [{ type: 'text', value: `CONTEXT:\n${contextText}\n\nUse it only if relevant.` }]
+      }]);
+    }
+
+    // Append user content with images interleaved
+    const baseUserParts = [{ type: 'text', value: userPrompt }];
+    const imageFiles = Array.isArray(contextData.images) ? contextData.images : [];
+    const contentParts = baseUserParts.concat(imageFiles.map(f => ({ type: 'image', value: f })));
+
+    await session.append([{ role: 'user', content: contentParts }]);
+
+    const answer = await session.prompt("Answer the user's last request.", { signal: abortSignal });
+    return typeof answer === 'string' ? answer : String(answer);
+
+  } catch (err) {
+    // Fallback if multimodal isn’t supported or origin trial not enabled
+    if (err?.name === 'NotSupportedError' || /multimodal|image/i.test(err?.message || '')) {
+      console.warn("Multimodal not supported here; falling back to text-only:", err);
+      const contextText = contextData.textBlob?.trim() || "";
+      const merged = contextText
+        ? `CONTEXT:\n${contextText}\n\nUSER PROMPT:\n${userPrompt}`
+        : `USER PROMPT:\n${userPrompt}`;
+      return runPrompt(merged, abortSignal);
+    }
+    throw err;
+  }
+}
+
 
   // === Tag context helpers ===
   const TAGS_KEY = "taggle-tags";
@@ -353,7 +475,7 @@
         max-height: 320px;
         overflow: hidden;
         z-index: 10000;
-        font-family: 'Familjen Grotesk', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+        font-family: 'Ranade', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
         font-size: 13px;
         display: none;
         min-width: 280px;
@@ -1292,7 +1414,7 @@
     Object.assign(n.style, {
       position: "fixed", top: "10px", left: "50%", transform: "translateX(-50%)",
       background: "rgba(0,0,0,.85)", color: "#fff", padding: "8px 10px",
-      borderRadius: "8px", zIndex: 999999, fontFamily: "'Familjen Grotesk', system-ui", fontSize: "12px"
+      borderRadius: "8px", zIndex: 999999, fontFamily: "'Ranade', system-ui", fontSize: "12px"
     });
     document.body.appendChild(n);
     setTimeout(() => n.remove(), ms);
@@ -1316,101 +1438,6 @@
     return () => clearInterval(id);
   }
 
-  // --- Prompt API path -------------------------------------------------------
-
-  // One session per request (simple v1). You can cache one if you like.
-  async function runPrompt(userText, signal) {
-    // IMPORTANT: Pass the SAME options to availability() that you'll use to create/prompt
-    const avail = await LanguageModel.availability(EXPECTED);
-    // values may be 'unavailable' | 'after-download' | 'downloading' | 'readily'
-    if (avail === "unavailable") throw new Error("Gemini Nano unavailable on this device/browser.");
-
-    // Create session; show download progress if needed
-    const session = await LanguageModel.create({
-      ...EXPECTED,
-      // light touch system style
-      initialPrompts: [{ role: "system", content: "You are concise and helpful. Prefer plain text." }],
-      monitor(m) {
-        m.addEventListener("downloadprogress", (e) => {
-          // e.loaded is 0..1 (fraction)
-          const pct = Math.round((e.loaded || 0) * 100);
-          // Avoid spamming: update a single toast-ish element
-          progressToast(`${pct < 100 ? "Downloading model…" : "Finalizing…"} ${pct}%`);
-        });
-      },
-      signal
-    });
-
-    try {
-      // Non-streamed for v1 simplicity
-      const result = await session.prompt(userText, { signal });
-      return result;
-    } finally {
-      try { session.destroy(); } catch {}
-      progressToast(""); // clear
-    }
-  }
-
-  // Multimodal prompt function for handling images + text
-  async function runMultimodalPrompt(contextData, userPrompt, signal) {
-    // IMPORTANT: Pass the SAME options to availability() that you'll use to create/prompt
-    const avail = await LanguageModel.availability(EXPECTED);
-    if (avail === "unavailable") throw new Error("Gemini Nano unavailable on this device/browser.");
-
-    // Create session with multimodal support
-    const session = await LanguageModel.create({
-      ...EXPECTED,
-      initialPrompts: [{ role: "system", content: "You are concise and helpful. Analyze images and text context together to provide accurate responses." }],
-      monitor(m) {
-        m.addEventListener("downloadprogress", (e) => {
-          const pct = Math.round((e.loaded || 0) * 100);
-          progressToast(`${pct < 100 ? "Downloading model…" : "Finalizing…"} ${pct}%`);
-        });
-      },
-      signal
-    });
-
-    try {
-      // Build multimodal prompt content
-      const promptContent = [];
-      
-      // Add text context if available
-      if (contextData.textBlob) {
-        promptContent.push({
-          type: "text",
-          value: `CONTEXT:\n${contextData.textBlob}\n\n`
-        });
-      }
-      
-      // Add images
-      for (const image of contextData.images) {
-        promptContent.push({
-          type: "image",
-          value: image
-        });
-      }
-      
-      // Add user prompt
-      promptContent.push({
-        type: "text", 
-        value: `USER PROMPT:\n${userPrompt}`
-      });
-
-      console.log("Taggle: Multimodal prompt content:", promptContent);
-
-      // Send multimodal prompt
-      const result = await session.prompt([{
-        role: "user",
-        content: promptContent
-      }], { signal });
-      
-      return result;
-    } finally {
-      try { session.destroy(); } catch {}
-      progressToast(""); // clear
-    }
-  }
-
   // A single updatable toast for progress
   let _progressEl = null, _progressTimer = null;
   function progressToast(text) {
@@ -1424,7 +1451,7 @@
       Object.assign(_progressEl.style, {
         position: "fixed", top: "10px", left: "50%", transform: "translateX(-50%)",
         background: "rgba(20,20,20,.92)", color: "#fff", padding: "8px 10px",
-        borderRadius: "8px", zIndex: 999999, fontFamily: "'Familjen Grotesk', system-ui", fontSize: "12px",
+        borderRadius: "8px", zIndex: 999999, fontFamily: "'Ranade', system-ui", fontSize: "12px",
         boxShadow: "0 2px 8px rgba(0,0,0,.35)"
       });
       document.body.appendChild(_progressEl);
