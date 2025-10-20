@@ -1,13 +1,13 @@
 // background.js
 console.log("Taggle: Background script loaded");
 
-// Import calendar services for background sync
-importScripts('calendar-service-v3.js', 'calendar-sync.js');
+// Import calendar and gmail services for background sync
+importScripts('calendar-service-v3.js', 'calendar-sync.js', 'gmail-service.js', 'gmail-sync.js');
 
 // Initialize calendar auto-sync when extension starts
 chrome.runtime.onStartup.addListener(async () => {
   console.log("Taggle: Extension startup - initializing services");
-  await initializeCalendarAutoSync();
+  await initializeAutoSync();
   // Note: Folder handles cannot be restored after browser restart
   // Users will need to reconnect folders after restart due to security restrictions
 });
@@ -35,32 +35,33 @@ chrome.runtime.onInstalled.addListener(async () => {
     console.error("Taggle: Error creating context menus:", error);
   }
   
-  // Initialize calendar auto-sync
-  await initializeCalendarAutoSync();
+  // Initialize auto-sync for both calendar and gmail
+  await initializeAutoSync();
 });
 
-// Initialize calendar auto-sync
-async function initializeCalendarAutoSync() {
+// Initialize auto-sync for both calendar and gmail
+async function initializeAutoSync() {
   try {
-    // Load calendar settings
+    // Load settings
     const { 'taggle-calendar-settings': settings = {} } = 
       await chrome.storage.local.get('taggle-calendar-settings');
     
     if (settings.clientId) {
-      console.log("Taggle: Initializing calendar service in background");
+      console.log("Taggle: Initializing services in background");
       await CalendarService.initialize(settings.clientId);
+      await GmailService.initialize(settings.clientId);
       
-      // Check if we have calendar tags to sync
-      const { 'taggle-calendar-tags': calendarTags = {} } = 
-        await chrome.storage.local.get('taggle-calendar-tags');
+      // Check if we have tags to sync
+      const { 'taggle-calendar-tags': calendarTags = {}, 'taggle-gmail-tags': gmailTags = {} } = 
+        await chrome.storage.local.get(['taggle-calendar-tags', 'taggle-gmail-tags']);
       
-      if (Object.keys(calendarTags).length > 0) {
+      if (Object.keys(calendarTags).length > 0 || Object.keys(gmailTags).length > 0) {
         console.log("Taggle: Starting background auto-sync");
         startBackgroundAutoSync();
       }
     }
   } catch (error) {
-    console.warn("Taggle: Could not initialize calendar auto-sync:", error);
+    console.warn("Taggle: Could not initialize auto-sync:", error);
   }
 }
 
@@ -78,22 +79,31 @@ function startBackgroundAutoSync() {
     try {
       console.log("Taggle: Background auto-sync running...");
       
-      // Check if we have valid calendar settings and tags
-      const { 'taggle-calendar-settings': settings = {}, 'taggle-calendar-tags': calendarTags = {} } = 
-        await chrome.storage.local.get(['taggle-calendar-settings', 'taggle-calendar-tags']);
+      // Check if we have valid settings and tags
+      const { 'taggle-calendar-settings': settings = {}, 'taggle-calendar-tags': calendarTags = {}, 'taggle-gmail-tags': gmailTags = {} } = 
+        await chrome.storage.local.get(['taggle-calendar-settings', 'taggle-calendar-tags', 'taggle-gmail-tags']);
       
-      if (settings.clientId && Object.keys(calendarTags).length > 0) {
-        // Initialize service if needed
+      if (settings.clientId && (Object.keys(calendarTags).length > 0 || Object.keys(gmailTags).length > 0)) {
+        // Initialize services if needed
         if (!CalendarService.isInitialized) {
           await CalendarService.initialize(settings.clientId);
         }
+        if (!GmailService.isInitialized) {
+          await GmailService.initialize(settings.clientId);
+        }
         
         // Try to get a token (non-interactive)
-        if (!CalendarService.isSignedIn()) {
+        if (!CalendarService.isSignedIn() || !GmailService.isSignedIn()) {
           try {
             const token = await chrome.identity.getAuthToken({ interactive: false });
             if (token) {
-              CalendarService.accessToken = typeof token === 'object' && token.token ? token.token : token;
+              const accessToken = typeof token === 'object' && token.token ? token.token : token;
+              if (!CalendarService.isSignedIn()) {
+                CalendarService.accessToken = accessToken;
+              }
+              if (!GmailService.isSignedIn()) {
+                GmailService.accessToken = accessToken;
+              }
               console.log("Taggle: Background auth successful");
             }
           } catch (authError) {
@@ -103,7 +113,14 @@ function startBackgroundAutoSync() {
         }
         
         // Sync calendar tags
-        await CalendarSync.syncAllCalendarTags();
+        if (Object.keys(calendarTags).length > 0 && CalendarService.isSignedIn()) {
+          await CalendarSync.syncAllCalendarTags();
+        }
+        
+        // Sync gmail tags
+        if (Object.keys(gmailTags).length > 0 && GmailService.isSignedIn()) {
+          await GmailSync.syncAllGmailTags();
+        }
       }
     } catch (error) {
       console.warn("Taggle: Background sync error:", error);

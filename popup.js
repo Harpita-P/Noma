@@ -1,6 +1,7 @@
 // popup.js - Compact version of options.js for popup interface
 import { getAllTags, createTag, deleteTag, getContexts, addContext, updateContext, getAllFolders, addFolderWatch, removeFolderWatch } from "./storage.js";
 
+
 const els = {
   openaiKey: document.getElementById("openai-key"),
   saveOpenaiKey: document.getElementById("save-openai-key"),
@@ -13,14 +14,8 @@ const els = {
   pdfTagSelect: document.getElementById("pdf-tag-select"),
   uploadPdf: document.getElementById("upload-pdf"),
   uploadStatus: document.getElementById("upload-status"),
-  folderTagSelect: document.getElementById("folder-tag-select"),
-  addFolderWatch: document.getElementById("add-folder-watch"),
-  folderStatus: document.getElementById("folder-status"),
-  foldersList: document.getElementById("folders-list"),
-  scanNow: document.getElementById("scan-now"),
   // Calendar elements
   calendarClientId: document.getElementById("calendar-client-id"),
-  calendarApiKey: document.getElementById("calendar-api-key"),
   calendarSaveSettings: document.getElementById("calendar-save-settings"),
   calendarSignin: document.getElementById("calendar-signin"),
   calendarSignout: document.getElementById("calendar-signout"),
@@ -32,6 +27,23 @@ const els = {
   calendarTagsSection: document.getElementById("calendar-tags-section"),
   calendarTagsList: document.getElementById("calendar-tags-list"),
   calendarSyncAll: document.getElementById("calendar-sync-all"),
+  // Gmail elements
+  gmailSignin: document.getElementById("gmail-signin"),
+  gmailSignout: document.getElementById("gmail-signout"),
+  gmailAuthStatus: document.getElementById("gmail-auth-status"),
+  gmailTagCreation: document.getElementById("gmail-tag-creation"),
+  gmailTagName: document.getElementById("gmail-tag-name"),
+  createGmailTag: document.getElementById("create-gmail-tag"),
+  gmailTagsSection: document.getElementById("gmail-tags-section"),
+  gmailTagsList: document.getElementById("gmail-tags-list"),
+  gmailSyncAll: document.getElementById("gmail-sync-all"),
+  // New compact integration elements
+  calendarConnect: document.getElementById("calendar-connect"),
+  calendarDisconnect: document.getElementById("calendar-disconnect"),
+  calendarStatus: document.getElementById("calendar-status"),
+  gmailConnect: document.getElementById("gmail-connect"),
+  gmailDisconnect: document.getElementById("gmail-disconnect"),
+  gmailStatus: document.getElementById("gmail-status"),
 };
 
 els.saveOpenaiKey.onclick = onSaveOpenAIKey;
@@ -40,9 +52,6 @@ els.refresh.onclick = render;
 els.pdfFile.onchange = onPdfFileChange;
 els.pdfTagSelect.onchange = onPdfTagChange;
 els.uploadPdf.onclick = onUploadPdf;
-els.folderTagSelect.onchange = onFolderTagChange;
-els.addFolderWatch.onclick = onAddFolderWatch;
-els.scanNow.onclick = onScanNow;
 // Calendar event handlers
 els.calendarSaveSettings.onclick = onCalendarSaveSettings;
 els.calendarSignin.onclick = onCalendarSignin;
@@ -50,15 +59,23 @@ els.calendarSignout.onclick = onCalendarSignout;
 els.createCalendarTag.onclick = onCreateCalendarTag;
 els.calendarSyncAll.onclick = onCalendarSyncAll;
 
+// Gmail event handlers
+els.gmailSignin.onclick = onGmailSignin;
+els.gmailSignout.onclick = onGmailSignout;
+els.createGmailTag.onclick = onCreateGmailTag;
+els.gmailSyncAll.onclick = onGmailSyncAll;
+
+// New compact integration handlers
+els.calendarConnect.onclick = onCalendarConnect;
+els.calendarDisconnect.onclick = onCalendarDisconnect;
+els.gmailConnect.onclick = onGmailConnect;
+els.gmailDisconnect.onclick = onGmailDisconnect;
+
 // Load PDF extractor
 const pdfScript = document.createElement('script');
 pdfScript.src = 'pdf-extractor.js';
 document.head.appendChild(pdfScript);
 
-// Load folder watcher
-const folderScript = document.createElement('script');
-folderScript.src = 'folder-watcher.js';
-document.head.appendChild(folderScript);
 
 // Load calendar services (Manifest V3 compatible)
 const calendarServiceScript = document.createElement('script');
@@ -69,6 +86,14 @@ const calendarSyncScript = document.createElement('script');
 calendarSyncScript.src = 'calendar-sync.js';
 document.head.appendChild(calendarSyncScript);
 
+// Load Gmail services
+const gmailServiceScript = document.createElement('script');
+gmailServiceScript.src = 'gmail-service.js';
+document.head.appendChild(gmailServiceScript);
+
+const gmailSyncScript = document.createElement('script');
+gmailSyncScript.src = 'gmail-sync.js';
+document.head.appendChild(gmailSyncScript);
 // Load RAG system
 const ragScript = document.createElement('script');
 ragScript.src = 'rag-system.js';
@@ -187,10 +212,6 @@ async function render() {
   
   // Update tag selectors
   updatePdfTagSelector(tags);
-  updateFolderTagSelector(tags);
-  
-  // Render watched folders
-  await renderWatchedFolders();
   
   // Render calendar components
   try {
@@ -198,6 +219,16 @@ async function render() {
   } catch (error) {
     console.warn('Could not render calendar components:', error);
   }
+  
+  // Render Gmail components
+  try {
+    await renderGmailComponents();
+  } catch (error) {
+    console.warn('Could not render Gmail components:', error);
+  }
+  
+  // Update integration statuses
+  updateIntegrationStatuses();
   
   if (!tags.length) {
     els.list.innerHTML = `<p class="muted">No tags yet. Create one above.</p>`;
@@ -372,201 +403,6 @@ async function onUploadPdf() {
   }
 }
 
-// Update folder tag selector dropdown
-function updateFolderTagSelector(tags) {
-  const options = ['<option value="">Select tag...</option>'];
-  tags.forEach(tag => {
-    options.push(`<option value="${tag.id}">@${tag.name}</option>`);
-  });
-  els.folderTagSelect.innerHTML = options.join('');
-  updateFolderWatchButton();
-}
-
-// Handle folder tag selection change
-function onFolderTagChange() {
-  updateFolderWatchButton();
-}
-
-// Update folder watch button state
-function updateFolderWatchButton() {
-  const hasTag = els.folderTagSelect.value !== '';
-  els.addFolderWatch.disabled = !hasTag;
-}
-
-// Handle adding a folder watch
-async function onAddFolderWatch() {
-  const tagId = els.folderTagSelect.value;
-  
-  if (!tagId) {
-    els.folderStatus.textContent = 'Select a tag first.';
-    return;
-  }
-  
-  try {
-    els.addFolderWatch.disabled = true;
-    els.folderStatus.textContent = 'Opening picker...';
-    
-    // Wait for folder watcher to be available
-    let attempts = 0;
-    while (!window.FolderWatcher && attempts < 50) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      attempts++;
-    }
-    
-    if (!window.FolderWatcher) {
-      throw new Error('Folder watcher not loaded. Please refresh and try again.');
-    }
-    
-    // Initialize folder watcher
-    const initialized = await window.FolderWatcher.initialize();
-    if (!initialized) {
-      throw new Error('Folder watching not supported. Use Chrome or Edge.');
-    }
-    
-    // Request folder access
-    const directoryHandle = await window.FolderWatcher.requestFolderAccess();
-    
-    if (!directoryHandle) {
-      els.folderStatus.textContent = 'Cancelled.';
-      return;
-    }
-    
-    els.folderStatus.textContent = 'Setting up...';
-    
-    // Add folder watch
-    const folderConfig = await window.FolderWatcher.addFolderWatch(
-      directoryHandle, 
-      tagId, 
-      directoryHandle.name
-    );
-    
-    els.folderStatus.textContent = `✓ Watching "${folderConfig.name}"`;
-    
-    // Clear form
-    els.folderTagSelect.value = '';
-    updateFolderWatchButton();
-    
-    // Refresh the display
-    await renderWatchedFolders();
-    
-    // Clear status after delay
-    setTimeout(() => {
-      els.folderStatus.textContent = '';
-    }, 2000);
-    
-  } catch (error) {
-    console.error('Folder watch setup failed:', error);
-    els.folderStatus.textContent = `❌ ${error.message}`;
-    
-    setTimeout(() => {
-      els.folderStatus.textContent = '';
-    }, 3000);
-  } finally {
-    els.addFolderWatch.disabled = false;
-    updateFolderWatchButton();
-  }
-}
-
-// Render watched folders list
-async function renderWatchedFolders() {
-  try {
-    const folders = await getAllFolders();
-    const tags = await getAllTags();
-    const tagMap = new Map(tags.map(t => [t.id, t.name]));
-    
-    if (Object.keys(folders).length === 0) {
-      els.foldersList.innerHTML = '<p class="muted">No folders watched.</p>';
-      return;
-    }
-    
-    const parts = [];
-    for (const [folderId, folder] of Object.entries(folders)) {
-      const tagName = tagMap.get(folder.tagId) || 'Unknown';
-      parts.push(`
-        <div class="folder-item">
-          <div class="folder-info">
-            <span class="folder-name">${folder.name}</span>
-            <span class="folder-tag">@${tagName}</span>
-          </div>
-          <button data-remove-folder="${folderId}" class="btn btn-small">Remove</button>
-        </div>
-      `);
-    }
-    
-    els.foldersList.innerHTML = parts.join('');
-    
-    // Hook up remove buttons
-    els.foldersList.querySelectorAll('button[data-remove-folder]').forEach(btn => {
-      btn.onclick = async () => {
-        if (confirm('Stop watching this folder?')) {
-          const folderId = btn.dataset.removeFolder;
-          
-          try {
-            // Remove from folder watcher if available
-            if (window.FolderWatcher) {
-              await window.FolderWatcher.removeFolderWatch(folderId);
-            } else {
-              // Fallback to storage-only removal
-              await removeFolderWatch(folderId);
-            }
-            
-            await renderWatchedFolders();
-          } catch (error) {
-            console.error('Error removing folder watch:', error);
-            alert('Error removing folder watch: ' + error.message);
-          }
-        }
-      };
-    });
-    
-  } catch (error) {
-    console.error('Error rendering watched folders:', error);
-    els.foldersList.innerHTML = '<p class="muted">Error loading folders.</p>';
-  }
-}
-
-// Handle manual scan now button
-async function onScanNow() {
-  try {
-    els.scanNow.disabled = true;
-    els.scanNow.textContent = 'Scanning...';
-    
-    // Wait for folder watcher to be available
-    let attempts = 0;
-    while (!window.FolderWatcher && attempts < 50) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      attempts++;
-    }
-    
-    if (!window.FolderWatcher) {
-      throw new Error('Folder watcher not loaded. Please refresh and try again.');
-    }
-    
-    // Trigger immediate scan of all folders
-    await window.FolderWatcher.scanAllFoldersNow();
-    
-    els.scanNow.textContent = '✓ Done';
-    
-    // Refresh the display to show any new contexts
-    render();
-    
-    // Reset button after delay
-    setTimeout(() => {
-      els.scanNow.textContent = 'Scan Now';
-    }, 1500);
-    
-  } catch (error) {
-    console.error('Manual scan failed:', error);
-    els.scanNow.textContent = '❌ Error';
-    
-    setTimeout(() => {
-      els.scanNow.textContent = 'Scan Now';
-    }, 2000);
-  } finally {
-    els.scanNow.disabled = false;
-  }
-}
-
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"]/g, ch =>
     ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;" }[ch])
@@ -661,7 +497,6 @@ async function searchRAGForTag(tagId, query, topK = 3) {
 async function onCalendarSaveSettings() {
   try {
     const clientId = els.calendarClientId.value.trim();
-    const apiKey = els.calendarApiKey.value.trim();
     
     if (!clientId) {
       alert('Please enter a Google Client ID');
@@ -669,16 +504,18 @@ async function onCalendarSaveSettings() {
     }
     
     const settings = { clientId };
-    if (apiKey) settings.apiKey = apiKey;
     
     await chrome.storage.local.set({ 'taggle-calendar-settings': settings });
     
     // Initialize calendar service
     await waitForCalendarService();
-    await CalendarService.initialize(clientId, apiKey);
+    await CalendarService.initialize(clientId);
     
     els.calendarSignin.disabled = false;
     els.calendarAuthStatus.textContent = 'Settings saved. You can now sign in.';
+    
+    // Update status indicator
+    updateIntegrationStatuses();
     
     console.log('Taggle: Calendar settings saved');
     
@@ -713,12 +550,13 @@ async function onCalendarSignout() {
     await waitForCalendarService();
     await CalendarService.signOut();
     
-    els.calendarAuthStatus.textContent = 'Signed out from Google Calendar.';
+    els.calendarAuthStatus.textContent = 'Signed out from Google Account.';
     els.calendarSignin.style.display = 'inline-flex';
     els.calendarSignout.style.display = 'none';
     els.calendarTagCreation.style.display = 'none';
     els.calendarSyncAll.style.display = 'none';
     
+    updateIntegrationStatuses();
     await renderCalendarComponents();
   } catch (error) {
     console.error('Calendar sign-out failed:', error);
@@ -780,17 +618,17 @@ async function renderCalendarComponents() {
       await chrome.storage.local.get('taggle-calendar-settings');
     
     els.calendarClientId.value = settings.clientId || '';
-    els.calendarApiKey.value = settings.apiKey || '';
     
     // Check if signed in
     await waitForCalendarService();
     const isSignedIn = CalendarService.isSignedIn();
     
     if (isSignedIn) {
-      els.calendarAuthStatus.textContent = 'Signed in to Google Calendar';
+      els.calendarAuthStatus.textContent = 'Signed in Google Account';
       els.calendarSignin.style.display = 'none';
       els.calendarSignout.style.display = 'inline-flex';
       els.calendarTagCreation.style.display = 'block';
+      updateIntegrationStatuses();
       els.calendarSyncAll.style.display = 'inline-flex';
     } else {
       els.calendarAuthStatus.textContent = settings.clientId ? 'Ready to sign in' : 'Enter credentials to get started';
@@ -895,6 +733,425 @@ async function waitForCalendarSync() {
   }
   if (!window.CalendarSync) {
     throw new Error('Calendar sync not loaded. Please refresh and try again.');
+  }
+}
+
+// Gmail functions
+async function onGmailSignin() {
+  try {
+    await waitForGmailService();
+    await waitForGmailSync();
+    
+    // Use the same client ID as calendar
+    const calendarSettings = await CalendarSync.getCalendarSettings();
+    if (!calendarSettings.clientId) {
+      els.gmailAuthStatus.textContent = "Please set up Google Client ID in Calendar integration first.";
+      els.gmailAuthStatus.style.color = "#ef4444";
+      return;
+    }
+
+    await GmailService.initialize(calendarSettings.clientId);
+    await GmailService.signIn();
+    
+    els.gmailAuthStatus.textContent = "Gmail sign-in successful!";
+    els.gmailAuthStatus.style.color = "#10b981";
+    await renderGmailComponents();
+  } catch (error) {
+    console.error("Gmail sign-in error:", error);
+    els.gmailAuthStatus.textContent = "Gmail sign-in failed: " + error.message;
+    els.gmailAuthStatus.style.color = "#ef4444";
+  }
+}
+
+async function onGmailSignout() {
+  try {
+    await waitForGmailService();
+    await GmailService.signOut();
+    els.gmailAuthStatus.textContent = "Signed out of Gmail.";
+    els.gmailAuthStatus.style.color = "#6b7280";
+    updateIntegrationStatuses();
+    await renderGmailComponents();
+  } catch (error) {
+    console.error("Gmail sign-out error:", error);
+    els.gmailAuthStatus.textContent = "Sign-out failed: " + error.message;
+    els.gmailAuthStatus.style.color = "#ef4444";
+  }
+}
+
+async function onCreateGmailTag() {
+  try {
+    await waitForGmailSync();
+    
+    const tagName = els.gmailTagName.value.trim();
+
+    if (!tagName) {
+      els.gmailAuthStatus.textContent = "Please enter a tag name.";
+      els.gmailAuthStatus.style.color = "#ef4444";
+      return;
+    }
+
+    const gmailConfig = {
+      type: 'recent', // Only recent emails now
+      maxResults: 5 // Always use top 5 emails
+    };
+
+    await GmailSync.createGmailTag(tagName, gmailConfig);
+    
+    els.gmailTagName.value = '';
+    els.gmailAuthStatus.textContent = `Gmail tag @${tagName} created successfully!`;
+    els.gmailAuthStatus.style.color = "#10b981";
+    
+    await renderGmailComponents();
+    await render();
+  } catch (error) {
+    console.error("Error creating Gmail tag:", error);
+    els.gmailAuthStatus.textContent = "Failed to create Gmail tag: " + error.message;
+    els.gmailAuthStatus.style.color = "#ef4444";
+  }
+}
+
+async function onGmailSyncAll() {
+  try {
+    await waitForGmailSync();
+    
+    els.gmailSyncAll.disabled = true;
+    els.gmailSyncAll.textContent = "Syncing...";
+    
+    await GmailSync.syncAllGmailTags();
+    
+    els.gmailAuthStatus.textContent = "All Gmail tags synced successfully!";
+    els.gmailAuthStatus.style.color = "#10b981";
+    await renderGmailComponents();
+    await render();
+  } catch (error) {
+    console.error("Error syncing Gmail tags:", error);
+    els.gmailAuthStatus.textContent = "Sync failed: " + error.message;
+    els.gmailAuthStatus.style.color = "#ef4444";
+  } finally {
+    els.gmailSyncAll.disabled = false;
+    els.gmailSyncAll.textContent = "Sync All";
+  }
+}
+
+async function renderGmailComponents() {
+  try {
+    // Check if Gmail services are available
+    if (typeof GmailService === 'undefined' || typeof GmailSync === 'undefined') {
+      els.gmailTagsList.innerHTML = '<p style="color: #6b7280;">Gmail services loading...</p>';
+      return;
+    }
+
+    const isSignedIn = GmailService.isSignedIn();
+    
+    // Update sign-in/out buttons
+    els.gmailSignin.style.display = isSignedIn ? 'none' : 'inline-block';
+    els.gmailSignout.style.display = isSignedIn ? 'inline-block' : 'none';
+    els.gmailSignin.disabled = false; // Enable after calendar setup
+    
+    // Show/hide tag creation and sync sections
+    els.gmailTagCreation.style.display = isSignedIn ? 'block' : 'none';
+    els.gmailTagsSection.style.display = isSignedIn ? 'block' : 'none';
+    els.gmailSyncAll.style.display = isSignedIn ? 'inline-block' : 'none';
+
+    // Update user info
+    if (isSignedIn) {
+      try {
+        const userInfo = await GmailService.getUserInfo();
+        els.gmailAuthStatus.textContent = `Signed in as: ${userInfo.email}`;
+        els.gmailAuthStatus.style.color = "#10b981";
+        updateIntegrationStatuses();
+      } catch (error) {
+        els.gmailAuthStatus.textContent = "Signed in to Gmail";
+        els.gmailAuthStatus.style.color = "#10b981";
+        updateIntegrationStatuses();
+      }
+    }
+
+    // Render Gmail tags list
+    const gmailTags = await GmailSync.getGmailTags();
+    const gmailTagIds = Object.keys(gmailTags);
+    
+    if (gmailTagIds.length === 0) {
+      els.gmailTagsList.innerHTML = '<p style="color: #6b7280;">No Gmail tags created yet.</p>';
+      return;
+    }
+
+    let html = '';
+    for (const tagId of gmailTagIds) {
+      const config = gmailTags[tagId];
+      const lastSynced = config.lastSynced ? new Date(config.lastSynced).toLocaleString() : 'Never';
+      
+      const typeDescription = 'Recent Emails (5)';
+
+      html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
+          <div>
+            <div style="font-weight: 500; color: #1f2937;">@${config.tagName}</div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${typeDescription}</div>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Last synced: ${lastSynced}</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-small gmail-sync-btn" data-tag-id="${tagId}">Sync</button>
+            <button class="btn btn-small gmail-delete-btn" data-tag-id="${tagId}" style="background: #ef4444; color: white; border-color: #ef4444;">Delete</button>
+          </div>
+        </div>
+      `;
+    }
+    
+    els.gmailTagsList.innerHTML = html;
+
+    // Add event listeners for sync and delete buttons
+    els.gmailTagsList.querySelectorAll('.gmail-sync-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const tagId = btn.dataset.tagId;
+        try {
+          btn.disabled = true;
+          btn.textContent = 'Syncing...';
+          await GmailSync.syncGmailTag(tagId);
+          await renderGmailComponents();
+          await render();
+          els.gmailAuthStatus.textContent = 'Gmail tag synced successfully!';
+          els.gmailAuthStatus.style.color = "#10b981";
+        } catch (error) {
+          console.error("Error syncing Gmail tag:", error);
+          els.gmailAuthStatus.textContent = 'Sync failed: ' + error.message;
+          els.gmailAuthStatus.style.color = "#ef4444";
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Sync';
+        }
+      };
+    });
+
+    els.gmailTagsList.querySelectorAll('.gmail-delete-btn').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm("Delete this Gmail tag? This will also delete the regular tag and all its contexts.")) {
+          return;
+        }
+        
+        const tagId = btn.dataset.tagId;
+        try {
+          await GmailSync.deleteGmailTag(tagId);
+          await deleteTag(tagId);
+          await renderGmailComponents();
+          await render();
+          els.gmailAuthStatus.textContent = 'Gmail tag deleted successfully!';
+          els.gmailAuthStatus.style.color = "#10b981";
+        } catch (error) {
+          console.error("Error deleting Gmail tag:", error);
+          els.gmailAuthStatus.textContent = 'Delete failed: ' + error.message;
+          els.gmailAuthStatus.style.color = "#ef4444";
+        }
+      };
+    });
+    
+  } catch (error) {
+    console.error("Error rendering Gmail components:", error);
+    els.gmailTagsList.innerHTML = '<p style="color: #ef4444;">Error loading Gmail tags.</p>';
+  }
+}
+
+async function waitForGmailService() {
+  let attempts = 0;
+  while (!window.GmailService && attempts < 50) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  if (!window.GmailService) {
+    throw new Error('Gmail service not loaded. Please refresh and try again.');
+  }
+}
+
+async function waitForGmailSync() {
+  let attempts = 0;
+  while (!window.GmailSync && attempts < 50) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  if (!window.GmailSync) {
+    throw new Error('Gmail sync not loaded. Please refresh and try again.');
+  }
+}
+
+// Update integration status indicators
+function updateIntegrationStatuses() {
+  updateCalendarStatus();
+  updateGmailStatus();
+}
+
+function updateCalendarStatus() {
+  const statusEl = els.calendarStatus;
+  if (!statusEl) return;
+  
+  // Check if Google Client ID is configured
+  const clientId = els.calendarClientId.value.trim();
+  
+  if (!clientId) {
+    statusEl.textContent = 'Setup required';
+    statusEl.className = 'integration-status';
+    els.calendarConnect.style.display = 'none';
+    els.calendarDisconnect.style.display = 'none';
+    return;
+  }
+  
+  // Check calendar sign-in status
+  let isSignedIn = false;
+  if (window.CalendarService && window.CalendarService.isSignedIn && window.CalendarService.isSignedIn()) {
+    isSignedIn = true;
+  }
+  
+  if (isSignedIn) {
+    statusEl.textContent = 'Connected';
+    statusEl.className = 'integration-status connected';
+    els.calendarConnect.style.display = 'none';
+    els.calendarDisconnect.style.display = 'inline-flex';
+  } else {
+    statusEl.textContent = 'Ready';
+    statusEl.className = 'integration-status';
+    els.calendarConnect.style.display = 'inline-flex';
+    els.calendarDisconnect.style.display = 'none';
+  }
+}
+
+function updateGmailStatus() {
+  const statusEl = els.gmailStatus;
+  if (!statusEl) return;
+  
+  // Check if Google Client ID is configured
+  const clientId = els.calendarClientId.value.trim();
+  
+  if (!clientId) {
+    statusEl.textContent = 'Setup required';
+    statusEl.className = 'integration-status';
+    els.gmailConnect.style.display = 'inline-flex'; // Always show Connect button
+    els.gmailDisconnect.style.display = 'none';
+    return;
+  }
+  
+  // Check Gmail sign-in status
+  let isSignedIn = false;
+  if (window.GmailService && window.GmailService.isSignedIn && window.GmailService.isSignedIn()) {
+    isSignedIn = true;
+  }
+  
+  if (isSignedIn) {
+    statusEl.textContent = 'Connected';
+    statusEl.className = 'integration-status connected';
+    els.gmailConnect.style.display = 'none';
+    els.gmailDisconnect.style.display = 'inline-flex';
+  } else {
+    statusEl.textContent = 'Ready';
+    statusEl.className = 'integration-status';
+    els.gmailConnect.style.display = 'inline-flex';
+    els.gmailDisconnect.style.display = 'none';
+  }
+}
+
+// Compact integration handlers
+async function onCalendarConnect() {
+  try {
+    // Save settings first if needed
+    await onCalendarSaveSettings();
+    
+    // Sign in to calendar
+    await onCalendarSignin();
+    
+    // Create default calendar tag
+    await createDefaultCalendarTag();
+    
+    updateIntegrationStatuses();
+  } catch (error) {
+    console.error('Calendar connect failed:', error);
+    els.calendarAuthStatus.textContent = 'Connection failed: ' + error.message;
+  }
+}
+
+async function onCalendarDisconnect() {
+  try {
+    await onCalendarSignout();
+    updateIntegrationStatuses();
+  } catch (error) {
+    console.error('Calendar disconnect failed:', error);
+  }
+}
+
+async function onGmailConnect() {
+  console.log('Gmail Connect button clicked!');
+  try {
+    // Make sure Google Client ID is configured first
+    const clientId = els.calendarClientId.value.trim();
+    if (!clientId) {
+      alert('Please enter a Google Client ID and click Save first');
+      return;
+    }
+    
+    console.log('Gmail: Client ID found, initializing service...');
+    
+    // Initialize Gmail service if needed
+    await waitForGmailService();
+    if (!window.GmailService.isInitialized) {
+      await window.GmailService.initialize(clientId);
+    }
+    
+    console.log('Gmail: Service initialized, signing in...');
+    
+    // Sign in to Gmail
+    await onGmailSignin();
+    
+    console.log('Gmail: Signed in, creating default tag...');
+    
+    // Create default Gmail tag
+    await createDefaultGmailTag();
+    
+    console.log('Gmail: Default tag created, updating status...');
+    
+    updateIntegrationStatuses();
+    console.log('Gmail: Connect process completed successfully!');
+  } catch (error) {
+    console.error('Gmail connect failed:', error);
+    els.gmailAuthStatus.textContent = 'Connection failed: ' + error.message;
+    alert('Gmail connection failed: ' + error.message);
+  }
+}
+
+async function onGmailDisconnect() {
+  try {
+    await onGmailSignout();
+    updateIntegrationStatuses();
+  } catch (error) {
+    console.error('Gmail disconnect failed:', error);
+  }
+}
+
+// Create default tags
+async function createDefaultCalendarTag() {
+  try {
+    await waitForCalendarSync();
+    
+    const calendarConfig = {
+      type: 'upcoming' // Default to next 30 days
+    };
+    
+    await CalendarSync.createCalendarTag('myCalendar', calendarConfig);
+    console.log('Created default calendar tag: @myCalendar');
+  } catch (error) {
+    console.error('Failed to create default calendar tag:', error);
+  }
+}
+
+async function createDefaultGmailTag() {
+  try {
+    await waitForGmailSync();
+    
+    const gmailConfig = {
+      type: 'recent',
+      maxResults: 5
+    };
+    
+    await GmailSync.createGmailTag('myEmails', gmailConfig);
+    console.log('Created default Gmail tag: @myEmails');
+  } catch (error) {
+    console.error('Failed to create default Gmail tag:', error);
   }
 }
 
