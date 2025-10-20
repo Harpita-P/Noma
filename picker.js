@@ -31,13 +31,21 @@ async function init() {
     let options = '<option value="__new__">+ Create new tag...</option>';
     if (tagsWithCounts.length > 0) {
       options += tagsWithCounts.map(t => {
-        const counts = t.contextCounts || { text: 0, pdf: 0, image: 0, total: 0 };
+        const counts = t.contextCounts || { text: 0, pdf: 0, image: 0, calendar: 0, total: 0 };
         
         // Create indicators text
         const indicators = [];
-        if (counts.text > 0) indicators.push(`📄${counts.text}`);
-        if (counts.pdf > 0) indicators.push(`📕${counts.pdf}`);
-        if (counts.image > 0) indicators.push(`🖼️${counts.image}`);
+        
+        // If it's a calendar tag, show calendar emoji instead of numbered indicators
+        if (t.isCalendarTag) {
+          indicators.push(`📅`);
+        } else {
+          // Show regular indicators for non-calendar tags
+          if (counts.text > 0) indicators.push(`📄${counts.text}`);
+          if (counts.pdf > 0) indicators.push(`📕${counts.pdf}`);
+          if (counts.image > 0) indicators.push(`🖼️${counts.image}`);
+          if (counts.calendar > 0) indicators.push(`📅${counts.calendar}`);
+        }
         
         const indicatorText = indicators.length > 0 ? ` (${indicators.join(' ')})` : '';
         

@@ -43,72 +43,78 @@ class CalendarService {
         }
       }
 
-      // Use Chrome's getAuthToken for simpler OAuth flow
-      const token = await chrome.identity.getAuthToken({
-        interactive: true,
-        scopes: this.SCOPES
-      });
-
-      if (!token) {
-        throw new Error('No access token received');
-      }
-
-      // Extract the actual token string from the token object
-      this.accessToken = typeof token === 'object' && token.token ? token.token : token;
-      console.log('Taggle: Google Calendar sign-in successful, token type:', typeof token);
-      console.log('Taggle: Token preview:', typeof this.accessToken === 'string' ? this.accessToken.substring(0, 20) + '...' : this.accessToken);
-      console.log('Taggle: Granted scopes:', token.grantedScopes);
-      
-      // Test the token immediately
+      // For unpublished extensions, try Chrome Identity API first
+      console.log('Taggle: Attempting Chrome Identity API sign-in...');
       try {
-        await this.apiRequest('calendars/primary');
-        console.log('Taggle: Token validation successful');
-      } catch (testError) {
-        console.error('Taggle: Token validation failed:', testError);
-        throw new Error('Token validation failed: ' + testError.message);
-      }
-      
-      return true;
-
-    } catch (error) {
-      console.error('Taggle: Google Calendar sign-in failed:', error);
-      
-      // If getAuthToken fails, try the manual OAuth flow as fallback
-      try {
-        console.log('Taggle: Trying manual OAuth flow...');
-        
-        const authUrl = `https://accounts.google.com/o/oauth2/auth?` +
-          `client_id=${this.CLIENT_ID}&` +
-          `response_type=token&` +
-          `scope=${encodeURIComponent(this.SCOPES)}&` +
-          `redirect_uri=${encodeURIComponent(chrome.identity.getRedirectURL())}`;
-
-        console.log('Taggle: Auth URL:', authUrl);
-        console.log('Taggle: Redirect URL:', chrome.identity.getRedirectURL());
-
-        const responseUrl = await chrome.identity.launchWebAuthFlow({
-          url: authUrl,
-          interactive: true
+        const token = await chrome.identity.getAuthToken({
+          interactive: true,
+          scopes: this.SCOPES
         });
 
-        console.log('Taggle: Response URL:', responseUrl);
-
-        // Extract access token from response URL
-        if (responseUrl && responseUrl.includes('#')) {
-          const urlParams = new URLSearchParams(responseUrl.split('#')[1]);
-          this.accessToken = urlParams.get('access_token');
+        if (token) {
+          this.accessToken = typeof token === 'object' && token.token ? token.token : token;
+          console.log('Taggle: Chrome Identity API sign-in successful');
           
-          if (this.accessToken) {
-            console.log('Taggle: Manual OAuth successful');
-            return true;
-          }
+          // Test the token
+          await this.apiRequest('calendars/primary');
+          console.log('Taggle: Token validation successful');
+          return true;
         }
+      } catch (identityError) {
+        console.log('Taggle: Chrome Identity API failed, trying manual OAuth flow for unpublished extension...');
+        console.log('Taggle: Identity error:', identityError.message);
+      }
+
+      // Fallback for unpublished extensions - use manual OAuth with dynamic redirect URI
+      const redirectUri = chrome.identity.getRedirectURL();
+      console.log('Taggle: Using redirect URI:', redirectUri);
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/auth?` +
+        `client_id=${this.CLIENT_ID}&` +
+        `response_type=token&` +
+        `scope=${encodeURIComponent(this.SCOPES.join(' '))}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+      console.log('Taggle: Auth URL:', authUrl);
+
+      const responseUrl = await chrome.identity.launchWebAuthFlow({
+        url: authUrl,
+        interactive: true
+      });
+
+      console.log('Taggle: OAuth response URL received');
+
+      // Extract access token from response URL
+      if (responseUrl && responseUrl.includes('#')) {
+        const urlParams = new URLSearchParams(responseUrl.split('#')[1]);
+        this.accessToken = urlParams.get('access_token');
         
-        throw new Error('No access token in response');
-        
-      } catch (fallbackError) {
-        console.error('Taggle: Manual OAuth also failed:', fallbackError);
-        throw fallbackError;
+        if (this.accessToken) {
+          console.log('Taggle: Manual OAuth successful');
+          
+          // Test the token
+          await this.apiRequest('calendars/primary');
+          console.log('Taggle: Token validation successful');
+          return true;
+        }
+      }
+      
+      throw new Error('No access token received from OAuth flow');
+
+    } catch (error) {
+      console.error('Taggle: Sign-in failed:', error);
+      
+      // Provide helpful error messages
+      if (error.message && error.message.includes('redirect_uri_mismatch')) {
+        throw new Error(`OAuth redirect URI mismatch. Please add "${chrome.identity.getRedirectURL()}" to your Google Cloud Console OAuth client's authorized redirect URIs.`);
+      } else if (error.message && error.message.includes('OAuth2 not granted or revoked')) {
+        throw new Error('Google Calendar access was denied or revoked. Please try signing in again and grant the necessary permissions.');
+      } else if (error.message && error.message.includes('The user did not approve access')) {
+        throw new Error('Sign-in was cancelled. Please try again and approve access to Google Calendar.');
+      } else if (error.message && error.message.includes('invalid_client')) {
+        throw new Error('Invalid Google Client ID. Please check the OAuth configuration in the extension options.');
+      } else {
+        throw new Error(`Sign-in failed: ${error.message}`);
       }
     }
   }
