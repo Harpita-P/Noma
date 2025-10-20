@@ -23,6 +23,69 @@
     }
   `;
   document.head.appendChild(style);
+
+  // Format calendar event for AI consumption
+  function formatCalendarEventForAI(event) {
+    const parts = [];
+    
+    if (event.title) {
+      parts.push(`Meeting: ${event.title}`);
+    }
+    
+    if (event.startTimeFormatted) {
+      parts.push(`Time: ${event.startTimeFormatted}`);
+      if (event.endTimeFormatted) {
+        parts.push(`- ${event.endTimeFormatted}`);
+      }
+    }
+    
+    if (event.attendees) {
+      parts.push(`Attendees: ${event.attendees}`);
+    }
+    
+    if (event.location) {
+      parts.push(`Location: ${event.location}`);
+    }
+    
+    if (event.meetingLinks && event.meetingLinks.length > 0) {
+      parts.push(`Meeting Link: ${event.meetingLinks[0]}`);
+    }
+    
+    if (event.description) {
+      parts.push(`Description: ${event.description}`);
+    }
+    
+    return parts.join('\n');
+  }
+
+  // Load calendar services for context integration
+  const loadCalendarServices = async () => {
+    try {
+      // Load calendar service script (Manifest V3 compatible)
+      const calendarServiceScript = document.createElement('script');
+      calendarServiceScript.src = chrome.runtime.getURL('calendar-service-v3.js');
+      document.head.appendChild(calendarServiceScript);
+
+      // Load calendar sync script
+      const calendarSyncScript = document.createElement('script');
+      calendarSyncScript.src = chrome.runtime.getURL('calendar-sync.js');
+      document.head.appendChild(calendarSyncScript);
+
+      // Wait a bit for scripts to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Initialize calendar sync if available
+      if (window.CalendarSync) {
+        await window.CalendarSync.initialize();
+      }
+    } catch (error) {
+      console.warn("Taggle: Could not load calendar services:", error);
+    }
+  };
+
+  // Load calendar services
+  loadCalendarServices();
+
   // --- Helpers ---------------------------------------------------------------
 
   const EXPECTED = {
@@ -254,7 +317,45 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
   async function getContexts(tagId) {
     try {
       const { [CTX_KEY]: ctxMap = {} } = await chrome.storage.local.get(CTX_KEY);
-      return ctxMap[tagId] || [];
+      const regularContexts = ctxMap[tagId] || [];
+      
+      // Check if this is a calendar tag and merge calendar contexts
+      try {
+        // Direct calendar context lookup (without CalendarSync dependency)
+        const { 'taggle-calendar-tags': calendarTags = {}, 'taggle-calendar-contexts': calendarContexts = {} } = 
+          await chrome.storage.local.get(['taggle-calendar-tags', 'taggle-calendar-contexts']);
+        
+        console.log('Taggle: Checking calendar tags for tagId:', tagId);
+        console.log('Taggle: Available calendar tags:', Object.keys(calendarTags));
+        
+        // Check if this tagId is a calendar tag
+        const isCalendarTag = calendarTags[tagId] !== undefined;
+        console.log('Taggle: Is calendar tag?', tagId, isCalendarTag);
+        
+        if (isCalendarTag) {
+          const events = calendarContexts[tagId] || [];
+          console.log('Taggle: Found calendar events:', events.length);
+          
+          // Convert calendar events to context format and merge
+          const formattedCalendarContexts = events.map(event => ({
+            id: event.id || `cal-${Date.now()}-${Math.random()}`,
+            type: "calendar",
+            text: formatCalendarEventForAI(event),
+            title: event.title || 'Calendar Event',
+            url: event.meetingLinks?.[0] || "",
+            source: "google-calendar",
+            createdAt: event.createdAt || new Date().toISOString(),
+            calendarEvent: event // Store full event data
+          }));
+          
+          console.log('Taggle: Formatted calendar contexts:', formattedCalendarContexts.length);
+          return [...formattedCalendarContexts, ...regularContexts];
+        }
+      } catch (calendarError) {
+        console.warn("Taggle: Error fetching calendar contexts:", calendarError);
+      }
+      
+      return regularContexts;
     } catch (error) {
       if (error.message.includes('Extension context invalidated')) {
         console.log("Taggle: Extension context invalidated, returning empty contexts");
@@ -322,9 +423,9 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
 
   async function buildContextData(tagId, { maxChars = 100000 } = {}) {
     try {
-      const { [CTX_KEY]: ctxMap = {} } = await chrome.storage.local.get(CTX_KEY);
-      const items = ctxMap[tagId] || [];
-      console.log("Taggle: Raw items from storage:", items);
+      // Use the updated getContexts function that includes calendar contexts
+      const items = await getContexts(tagId);
+      console.log("Taggle: Raw items from storage (including calendar):", items);
       
       const textParts = [];
       const imagePromises = [];
