@@ -2,22 +2,22 @@
 // Behavior: In any focused editable, press Ctrl+Space (Cmd+Space on Mac) -> send field text to Gemini Nano -> replace entire field with result.
 
 (function () {
-  // Inject CSS for orange cursor
+  // Inject CSS for blue cursor
   const style = document.createElement('style');
   style.textContent = `
-    /* Orange cursor for input fields and contentEditable elements */
+    /* Blue cursor for input fields and contentEditable elements */
     input, textarea, [contenteditable="true"], [contenteditable] {
-      caret-color: #ff8c00 !important;
+      caret-color: #007bff !important;
     }
     
-    /* Orange cursor for specific selectors that might override */
+    /* Blue cursor for specific selectors that might override */
     input:focus, textarea:focus, [contenteditable="true"]:focus, [contenteditable]:focus {
-      caret-color: #ff8c00 !important;
+      caret-color: #007bff !important;
     }
     
     /* Ensure it works on common rich text editors */
     .ql-editor, .DraftEditor-editorContainer, .notranslate, [role="textbox"] {
-      caret-color: #ff8c00 !important;
+      caret-color: #007bff !important;
     }
   `;
   document.head.appendChild(style);
