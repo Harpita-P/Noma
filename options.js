@@ -15,6 +15,10 @@ const els = {
   folderStatus: document.getElementById("folder-status"),
   foldersList: document.getElementById("folders-list"),
   scanNow: document.getElementById("scan-now"),
+  // OpenAI elements
+  openaiApiKey: document.getElementById("openai-api-key"),
+  saveOpenaiKey: document.getElementById("save-openai-key"),
+  openaiStatus: document.getElementById("openai-status"),
   // Calendar elements
   googleClientId: document.getElementById("google-client-id"),
   googleApiKey: document.getElementById("google-api-key"),
@@ -39,6 +43,9 @@ els.uploadPdf.onclick = onUploadPdf;
 els.folderTagSelect.onchange = onFolderTagChange;
 els.addFolderWatch.onclick = onAddFolderWatch;
 els.scanNow.onclick = onScanNow;
+
+// OpenAI event handlers
+els.saveOpenaiKey.onclick = onSaveOpenaiKey;
 
 // Calendar event handlers
 els.saveCalendarSettings.onclick = onSaveCalendarSettings;
@@ -759,6 +766,69 @@ window.deleteCalendarTag = async function(tagId) {
     alert("Failed to delete calendar tag: " + error.message);
   }
 };
+
+// OpenAI API Key Management
+async function onSaveOpenaiKey() {
+  const apiKey = els.openaiApiKey.value.trim();
+  
+  if (!apiKey) {
+    els.openaiStatus.textContent = "Please enter an API key";
+    els.openaiStatus.style.color = "#dc2626";
+    return;
+  }
+  
+  if (!apiKey.startsWith('sk-')) {
+    els.openaiStatus.textContent = "Invalid API key format. Should start with 'sk-'";
+    els.openaiStatus.style.color = "#dc2626";
+    return;
+  }
+  
+  try {
+    // Save to chrome storage
+    await chrome.storage.sync.set({ openaiApiKey: apiKey });
+    
+    // Test the API key
+    const testResponse = await fetch('https://api.openai.com/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (testResponse.ok) {
+      els.openaiStatus.textContent = "API key saved and validated successfully!";
+      els.openaiStatus.style.color = "#059669";
+      els.openaiApiKey.value = ""; // Clear the input for security
+    } else {
+      els.openaiStatus.textContent = "API key saved but validation failed. Please check your key.";
+      els.openaiStatus.style.color = "#d97706";
+    }
+  } catch (error) {
+    console.error("Error saving OpenAI API key:", error);
+    els.openaiStatus.textContent = "Failed to save API key: " + error.message;
+    els.openaiStatus.style.color = "#dc2626";
+  }
+}
+
+// Load saved OpenAI API key on page load
+async function loadOpenaiSettings() {
+  try {
+    const result = await chrome.storage.sync.get(['openaiApiKey']);
+    if (result.openaiApiKey) {
+      els.openaiStatus.textContent = "API key is configured (hidden for security)";
+      els.openaiStatus.style.color = "#059669";
+    } else {
+      els.openaiStatus.textContent = "Required for processing contexts larger than 30,000 characters using RAG (Retrieval-Augmented Generation)";
+      els.openaiStatus.style.color = "#6b7280";
+    }
+  } catch (error) {
+    console.error("Error loading OpenAI settings:", error);
+  }
+}
+
+// Call on page load
+loadOpenaiSettings();
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"]/g, ch =>

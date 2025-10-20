@@ -57,6 +57,15 @@
     </div>
 
     <div class="row">
+      <label>OpenAI API Configuration (for Large Context RAG)</label><br/>
+      <input id="openai-api-key" type="password" placeholder="OpenAI API Key (sk-...)" style="width: 400px; margin-right: 8px;" />
+      <button id="save-openai-key">Save API Key</button>
+      <div id="openai-status" class="muted" style="margin-top: 8px;">
+        Required for processing contexts larger than 30,000 characters using RAG (Retrieval-Augmented Generation)
+      </div>
+    </div>
+
+    <div class="row">
       <label>Google Calendar Integration</label><br/>
       <div id="calendar-setup" style="margin-bottom: 12px;">
         <input id="google-client-id" type="text" placeholder="Google Client ID (required)" style="width: 300px; margin-right: 8px;" />

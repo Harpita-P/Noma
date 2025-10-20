@@ -374,6 +374,15 @@
     <div class="scrollable-content">
       <div class="main-content">
       <div class="form-group">
+        <label class="form-label">OpenAI API Key (for RAG)</label>
+        <div class="form-row">
+          <input id="openai-key" type="password" placeholder="Enter OpenAI API key (sk-...)" style="flex: 1;" />
+          <button id="save-openai-key" class="btn">Save Key</button>
+        </div>
+        <div id="openai-key-status" class="status-text">Required for semantic search on large contexts (25k+ chars)</div>
+      </div>
+
+      <div class="form-group">
         <label class="form-label">Create Tag</label>
         <div class="form-row">
           <input id="tag-name" type="text" placeholder="Enter tag name (e.g., myResearch)" style="flex: 1;" />
