@@ -2,6 +2,25 @@
 // Behavior: In any focused editable, press Ctrl+Space (Cmd+Space on Mac) -> send field text to Gemini Nano -> replace entire field with result.
 
 (function () {
+  // Inject CSS for orange cursor
+  const style = document.createElement('style');
+  style.textContent = `
+    /* Orange cursor for input fields and contentEditable elements */
+    input, textarea, [contenteditable="true"], [contenteditable] {
+      caret-color: #ff8c00 !important;
+    }
+    
+    /* Orange cursor for specific selectors that might override */
+    input:focus, textarea:focus, [contenteditable="true"]:focus, [contenteditable]:focus {
+      caret-color: #ff8c00 !important;
+    }
+    
+    /* Ensure it works on common rich text editors */
+    .ql-editor, .DraftEditor-editorContainer, .notranslate, [role="textbox"] {
+      caret-color: #ff8c00 !important;
+    }
+  `;
+  document.head.appendChild(style);
   // --- Helpers ---------------------------------------------------------------
 
   const EXPECTED = {
@@ -983,36 +1002,98 @@
   function selectTag(tagName) {
     if (!currentElement) return;
     
-    const text = getText(currentElement);
-    const caretPos = storedCaretPosition; // Use stored position instead of current
+    const tagText = '@' + tagName + ' ';
     
     console.log('Taggle: selectTag debug:', {
-      originalText: text,
-      storedCaretPos: caretPos,
-      textLength: text.length
+      tagName: tagName,
+      tagText: tagText,
+      elementType: currentElement.tagName,
+      isContentEditable: currentElement.isContentEditable
     });
     
-    // Insert tag at cursor position without replacing any existing text
-    const beforeCaret = text.substring(0, caretPos);
-    const afterCaret = text.substring(caretPos);
-    
-    console.log('Taggle: Text split:', {
-      beforeCaret: `"${beforeCaret}"`,
-      afterCaret: `"${afterCaret}"` 
-    });
-    
-    const newText = beforeCaret + '@' + tagName + ' ' + afterCaret;
-    console.log('Taggle: New text:', `"${newText}"`);
-    
-    setText(currentElement, newText);
-    
-    // Position cursor after the tag and space
-    const newCaretPos = caretPos + tagName.length + 2; // +2 for @ and space
-    if (currentElement.setSelectionRange) {
-      setTimeout(() => {
-        currentElement.focus();
-        currentElement.setSelectionRange(newCaretPos, newCaretPos);
-      }, 10);
+    // For contentEditable elements, use insertText at current cursor position
+    if (currentElement.isContentEditable) {
+      currentElement.focus();
+      
+      // Restore cursor position if we have it stored
+      if (storedCaretPosition !== null) {
+        try {
+          const selection = window.getSelection();
+          const range = document.createRange();
+          
+          // Find the text node and position
+          const walker = document.createTreeWalker(
+            currentElement,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+          );
+          
+          let currentPos = 0;
+          let targetNode = null;
+          let targetOffset = 0;
+          
+          while (walker.nextNode()) {
+            const node = walker.currentNode;
+            const nodeLength = node.textContent.length;
+            
+            if (currentPos + nodeLength >= storedCaretPosition) {
+              targetNode = node;
+              targetOffset = storedCaretPosition - currentPos;
+              break;
+            }
+            currentPos += nodeLength;
+          }
+          
+          if (targetNode) {
+            range.setStart(targetNode, targetOffset);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        } catch (e) {
+          console.warn('Taggle: Could not restore cursor position:', e);
+        }
+      }
+      
+      // Insert the tag text at cursor position
+      if (document.execCommand) {
+        document.execCommand('insertText', false, tagText);
+      } else {
+        // Fallback: insert at current selection
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(document.createTextNode(tagText));
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+      
+      // Trigger events for rich text editors
+      currentElement.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+      currentElement.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+      
+    } else {
+      // For regular input/textarea elements
+      const text = getText(currentElement);
+      const caretPos = storedCaretPosition || currentElement.selectionStart || 0;
+      
+      const beforeCaret = text.substring(0, caretPos);
+      const afterCaret = text.substring(caretPos);
+      const newText = beforeCaret + tagText + afterCaret;
+      
+      currentElement.value = newText;
+      
+      // Position cursor after the tag
+      const newCaretPos = caretPos + tagText.length;
+      currentElement.setSelectionRange(newCaretPos, newCaretPos);
+      
+      // Trigger events
+      currentElement.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+      currentElement.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
     }
     
     hideTagSelector();
@@ -1122,17 +1203,21 @@
     if (!el) return;
     
     if (el.isContentEditable) {
-      if (isSpinner) {
-        // During spinner - preserve HTML structure but replace text content
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = el.innerHTML;
-        
-        // Convert text to HTML with proper line breaks
-        const htmlText = text.replace(/\n/g, '<br>');
-        el.innerHTML = htmlText;
+      // Use document.execCommand for better compatibility with rich text editors
+      el.focus();
+      
+      // Select all content first
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      // Use execCommand to replace content - this works better with rich editors
+      if (document.execCommand) {
+        document.execCommand('insertText', false, text);
       } else {
-        // Final result - preserve HTML structure and formatting
-        // Convert plain text to HTML with proper line breaks
+        // Fallback for browsers that don't support execCommand
         const htmlText = text
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
@@ -1140,10 +1225,15 @@
           .replace(/\n/g, '<br>');
         
         el.innerHTML = htmlText;
-        
+      }
+      
+      // Trigger input events for rich text editors
+      el.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+      
+      if (!isSpinner) {
         // Position cursor at the end
         setTimeout(() => {
-          el.focus();
           const selection = window.getSelection();
           const range = document.createRange();
           range.selectNodeContents(el);
