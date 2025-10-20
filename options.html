@@ -56,6 +56,40 @@
       </div>
     </div>
 
+    <div class="row">
+      <label>Google Calendar Integration</label><br/>
+      <div id="calendar-setup" style="margin-bottom: 12px;">
+        <input id="google-client-id" type="text" placeholder="Google Client ID (required)" style="width: 300px; margin-right: 8px;" />
+        <input id="google-api-key" type="text" placeholder="Google API Key (optional)" style="width: 200px; margin-right: 8px;" />
+        <button id="save-calendar-settings">Save Settings</button>
+        <div id="calendar-setup-status" class="muted" style="margin-top: 8px;"></div>
+      </div>
+      
+      <div id="calendar-auth" style="margin-bottom: 12px;">
+        <button id="calendar-signin" style="margin-right: 8px;">Sign In to Google Calendar</button>
+        <button id="calendar-signout" style="margin-right: 8px; display: none;">Sign Out</button>
+        <span id="calendar-user-info" class="muted"></span>
+      </div>
+      
+      <div id="calendar-tag-creation" style="margin-bottom: 12px;">
+        <input id="calendar-tag-name" type="text" placeholder="todayMeetings" style="margin-right: 8px;" />
+        <select id="calendar-tag-type" style="margin-right: 8px;">
+          <option value="today">Today's Meetings</option>
+          <option value="upcoming">Next 30 Days</option>
+        </select>
+        <button id="create-calendar-tag" disabled>Create Calendar Tag</button>
+        <div id="calendar-tag-status" class="muted" style="margin-top: 8px;"></div>
+      </div>
+      
+      <div id="calendar-tags" style="margin-top: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="font-size: 16px; margin: 12px 0 8px;">Calendar Tags</h3>
+          <button id="sync-calendar-tags" style="font-size: 12px; padding: 4px 8px;" disabled>Sync All</button>
+        </div>
+        <div id="calendar-tags-list"></div>
+      </div>
+    </div>
+
     <div id="list" class="row"></div>
 
     <script type="module" src="options.js"></script>

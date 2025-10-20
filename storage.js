@@ -42,7 +42,33 @@ export async function deleteTag(tagId) {
 export async function getContexts(tagId) {
   try {
     const { [CTX_KEY]: ctxMap = {} } = await chrome.storage.local.get(CTX_KEY);
-    return ctxMap[tagId] || [];
+    const regularContexts = ctxMap[tagId] || [];
+    
+    // Check if this is a calendar tag and merge calendar contexts
+    try {
+      if (typeof window !== 'undefined' && window.CalendarSync) {
+        const isCalendarTag = await window.CalendarSync.isCalendarTag(tagId);
+        if (isCalendarTag) {
+          const calendarContexts = await window.CalendarSync.getCalendarContexts(tagId);
+          // Convert calendar events to context format and merge
+          const formattedCalendarContexts = calendarContexts.map(event => ({
+            id: event.id,
+            type: "calendar",
+            text: window.CalendarSync.formatCalendarContextsForAI([event]),
+            title: event.title,
+            url: event.meetingLinks?.[0] || "",
+            source: "google-calendar",
+            createdAt: event.createdAt,
+            calendarEvent: event // Store full event data
+          }));
+          return [...formattedCalendarContexts, ...regularContexts];
+        }
+      }
+    } catch (calendarError) {
+      console.warn("Taggle: Error fetching calendar contexts:", calendarError);
+    }
+    
+    return regularContexts;
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
       console.log("Taggle: Extension context invalidated, returning empty contexts");
@@ -94,12 +120,15 @@ export async function getContextTypeCounts(tagId) {
       text: 0,
       pdf: 0,
       image: 0,
+      calendar: 0,
       total: contexts.length
     };
 
     contexts.forEach(ctx => {
       if (ctx.type === "image") {
         counts.image++;
+      } else if (ctx.type === "calendar") {
+        counts.calendar++;
       } else if (ctx.type === "text") {
         if (ctx.source === "pdf-upload" || (ctx.title && ctx.title.startsWith("PDF:"))) {
           counts.pdf++;
@@ -113,7 +142,7 @@ export async function getContextTypeCounts(tagId) {
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
       console.log("Taggle: Extension context invalidated, returning empty counts");
-      return { text: 0, pdf: 0, image: 0, total: 0 };
+      return { text: 0, pdf: 0, image: 0, calendar: 0, total: 0 };
     }
     throw error;
   }

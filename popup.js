@@ -15,6 +15,20 @@ const els = {
   folderStatus: document.getElementById("folder-status"),
   foldersList: document.getElementById("folders-list"),
   scanNow: document.getElementById("scan-now"),
+  // Calendar elements
+  calendarClientId: document.getElementById("calendar-client-id"),
+  calendarApiKey: document.getElementById("calendar-api-key"),
+  calendarSaveSettings: document.getElementById("calendar-save-settings"),
+  calendarSignin: document.getElementById("calendar-signin"),
+  calendarSignout: document.getElementById("calendar-signout"),
+  calendarAuthStatus: document.getElementById("calendar-auth-status"),
+  calendarTagCreation: document.getElementById("calendar-tag-creation"),
+  calendarTagName: document.getElementById("calendar-tag-name"),
+  calendarTagType: document.getElementById("calendar-tag-type"),
+  createCalendarTag: document.getElementById("create-calendar-tag"),
+  calendarTagsSection: document.getElementById("calendar-tags-section"),
+  calendarTagsList: document.getElementById("calendar-tags-list"),
+  calendarSyncAll: document.getElementById("calendar-sync-all"),
 };
 
 els.create.onclick = onCreate;
@@ -25,6 +39,12 @@ els.uploadPdf.onclick = onUploadPdf;
 els.folderTagSelect.onchange = onFolderTagChange;
 els.addFolderWatch.onclick = onAddFolderWatch;
 els.scanNow.onclick = onScanNow;
+// Calendar event handlers
+els.calendarSaveSettings.onclick = onCalendarSaveSettings;
+els.calendarSignin.onclick = onCalendarSignin;
+els.calendarSignout.onclick = onCalendarSignout;
+els.createCalendarTag.onclick = onCreateCalendarTag;
+els.calendarSyncAll.onclick = onCalendarSyncAll;
 
 // Load PDF extractor
 const pdfScript = document.createElement('script');
@@ -35,6 +55,15 @@ document.head.appendChild(pdfScript);
 const folderScript = document.createElement('script');
 folderScript.src = 'folder-watcher.js';
 document.head.appendChild(folderScript);
+
+// Load calendar services (Manifest V3 compatible)
+const calendarServiceScript = document.createElement('script');
+calendarServiceScript.src = 'calendar-service-v3.js';
+document.head.appendChild(calendarServiceScript);
+
+const calendarSyncScript = document.createElement('script');
+calendarSyncScript.src = 'calendar-sync.js';
+document.head.appendChild(calendarSyncScript);
 
 render();
 
@@ -59,6 +88,13 @@ async function render() {
   
   // Render watched folders
   await renderWatchedFolders();
+  
+  // Render calendar components
+  try {
+    await renderCalendarComponents();
+  } catch (error) {
+    console.warn('Could not render calendar components:', error);
+  }
   
   if (!tags.length) {
     els.list.innerHTML = `<p class="muted">No tags yet. Create one above.</p>`;
@@ -411,3 +447,247 @@ function escapeHtml(s) {
     ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;" }[ch])
   );
 }
+
+// ===== CALENDAR FUNCTIONS =====
+
+// Calendar settings management
+async function onCalendarSaveSettings() {
+  try {
+    const clientId = els.calendarClientId.value.trim();
+    const apiKey = els.calendarApiKey.value.trim();
+    
+    if (!clientId) {
+      alert('Please enter a Google Client ID');
+      return;
+    }
+    
+    const settings = { clientId };
+    if (apiKey) settings.apiKey = apiKey;
+    
+    await chrome.storage.local.set({ 'taggle-calendar-settings': settings });
+    
+    // Initialize calendar service
+    await waitForCalendarService();
+    await CalendarService.initialize(clientId, apiKey);
+    
+    els.calendarSignin.disabled = false;
+    els.calendarAuthStatus.textContent = 'Settings saved. You can now sign in.';
+    
+    console.log('Taggle: Calendar settings saved');
+    
+  } catch (error) {
+    console.error('Error saving calendar settings:', error);
+    els.calendarAuthStatus.textContent = 'Error saving settings: ' + error.message;
+  }
+}
+
+async function onCalendarSignin() {
+  try {
+    await waitForCalendarService();
+    
+    const success = await CalendarService.signIn();
+    if (success) {
+      els.calendarAuthStatus.textContent = 'Successfully signed in to Google Calendar!';
+      els.calendarSignin.style.display = 'none';
+      els.calendarSignout.style.display = 'inline-flex';
+      els.calendarTagCreation.style.display = 'block';
+      els.calendarSyncAll.style.display = 'inline-flex';
+      
+      await renderCalendarComponents();
+    }
+  } catch (error) {
+    console.error('Calendar sign-in failed:', error);
+    els.calendarAuthStatus.textContent = 'Sign-in failed: ' + error.message;
+  }
+}
+
+async function onCalendarSignout() {
+  try {
+    await waitForCalendarService();
+    await CalendarService.signOut();
+    
+    els.calendarAuthStatus.textContent = 'Signed out from Google Calendar.';
+    els.calendarSignin.style.display = 'inline-flex';
+    els.calendarSignout.style.display = 'none';
+    els.calendarTagCreation.style.display = 'none';
+    els.calendarSyncAll.style.display = 'none';
+    
+    await renderCalendarComponents();
+  } catch (error) {
+    console.error('Calendar sign-out failed:', error);
+    els.calendarAuthStatus.textContent = 'Sign-out failed: ' + error.message;
+  }
+}
+
+async function onCreateCalendarTag() {
+  try {
+    const tagName = els.calendarTagName.value.trim();
+    const tagType = els.calendarTagType.value;
+    
+    if (!tagName) {
+      alert('Please enter a tag name');
+      return;
+    }
+    
+    await waitForCalendarSync();
+    await CalendarSync.createCalendarTag(tagName, tagType);
+    
+    els.calendarTagName.value = '';
+    els.calendarAuthStatus.textContent = `Calendar tag @${tagName} created successfully!`;
+    
+    await renderCalendarComponents();
+    await render(); // Refresh main tags list
+    
+  } catch (error) {
+    console.error('Error creating calendar tag:', error);
+    els.calendarAuthStatus.textContent = 'Error creating calendar tag: ' + error.message;
+  }
+}
+
+async function onCalendarSyncAll() {
+  try {
+    els.calendarSyncAll.textContent = 'Syncing...';
+    els.calendarSyncAll.disabled = true;
+    
+    await waitForCalendarSync();
+    await CalendarSync.syncAllCalendarTags();
+    
+    els.calendarAuthStatus.textContent = 'All calendar tags synced successfully!';
+    await renderCalendarComponents();
+    await render(); // Refresh main tags list
+    
+  } catch (error) {
+    console.error('Error syncing calendar tags:', error);
+    els.calendarAuthStatus.textContent = 'Sync failed: ' + error.message;
+  } finally {
+    els.calendarSyncAll.textContent = 'Sync All';
+    els.calendarSyncAll.disabled = false;
+  }
+}
+
+// Render calendar components
+async function renderCalendarComponents() {
+  try {
+    // Load calendar settings
+    const { 'taggle-calendar-settings': settings = {} } = 
+      await chrome.storage.local.get('taggle-calendar-settings');
+    
+    els.calendarClientId.value = settings.clientId || '';
+    els.calendarApiKey.value = settings.apiKey || '';
+    
+    // Check if signed in
+    await waitForCalendarService();
+    const isSignedIn = CalendarService.isSignedIn();
+    
+    if (isSignedIn) {
+      els.calendarAuthStatus.textContent = 'Signed in to Google Calendar';
+      els.calendarSignin.style.display = 'none';
+      els.calendarSignout.style.display = 'inline-flex';
+      els.calendarTagCreation.style.display = 'block';
+      els.calendarSyncAll.style.display = 'inline-flex';
+    } else {
+      els.calendarAuthStatus.textContent = settings.clientId ? 'Ready to sign in' : 'Enter credentials to get started';
+      els.calendarSignin.style.display = 'inline-flex';
+      els.calendarSignin.disabled = !settings.clientId;
+      els.calendarSignout.style.display = 'none';
+      els.calendarTagCreation.style.display = 'none';
+      els.calendarSyncAll.style.display = 'none';
+    }
+    
+    // Render calendar tags
+    await waitForCalendarSync();
+    const calendarTags = await CalendarSync.getCalendarTags();
+    
+    if (Object.keys(calendarTags).length > 0) {
+      els.calendarTagsSection.style.display = 'block';
+      
+      const tagItems = Object.entries(calendarTags).map(([tagId, tag]) => {
+        const lastSynced = tag.lastSynced ? new Date(tag.lastSynced).toLocaleString() : 'Never';
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 8px;">
+            <div>
+              <strong>@${tag.tagName}</strong>
+              <div style="font-size: 11px; color: #64748b;">
+                ${tag.type === 'today' ? "Today's Meetings" : 'Next 30 Days'} • Last synced: ${lastSynced}
+              </div>
+            </div>
+            <div>
+              <button data-sync-calendar="${tagId}" class="sync-calendar-btn" style="font-size: 12px; padding: 4px 8px; margin-right: 4px;">Sync</button>
+              <button data-delete-calendar="${tagId}" class="delete-calendar-btn" style="font-size: 12px; padding: 4px 8px;">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      els.calendarTagsList.innerHTML = tagItems;
+      
+      // Add event listeners for calendar tag buttons
+      els.calendarTagsList.querySelectorAll('.sync-calendar-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const tagId = btn.dataset.syncCalendar;
+          try {
+            await waitForCalendarSync();
+            await CalendarSync.syncCalendarTag(tagId);
+            await renderCalendarComponents();
+            await render();
+            els.calendarAuthStatus.textContent = 'Calendar tag synced successfully!';
+          } catch (error) {
+            console.error("Error syncing calendar tag:", error);
+            els.calendarAuthStatus.textContent = 'Sync failed: ' + error.message;
+          }
+        };
+      });
+      
+      els.calendarTagsList.querySelectorAll('.delete-calendar-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const tagId = btn.dataset.deleteCalendar;
+          if (!confirm("Delete this calendar tag? This will also delete the regular tag and all its contexts.")) {
+            return;
+          }
+          
+          try {
+            await waitForCalendarSync();
+            await CalendarSync.deleteCalendarTag(tagId);
+            await deleteTag(tagId);
+            await renderCalendarComponents();
+            await render();
+            els.calendarAuthStatus.textContent = 'Calendar tag deleted successfully!';
+          } catch (error) {
+            console.error("Error deleting calendar tag:", error);
+            els.calendarAuthStatus.textContent = 'Delete failed: ' + error.message;
+          }
+        };
+      });
+    } else {
+      els.calendarTagsSection.style.display = 'none';
+    }
+    
+  } catch (error) {
+    console.error("Error rendering calendar components:", error);
+    els.calendarTagsList.innerHTML = '<p style="color: #ef4444;">Error loading calendar tags.</p>';
+  }
+}
+
+// Helper functions
+async function waitForCalendarService() {
+  let attempts = 0;
+  while (!window.CalendarService && attempts < 50) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  if (!window.CalendarService) {
+    throw new Error('Calendar service not loaded. Please refresh and try again.');
+  }
+}
+
+async function waitForCalendarSync() {
+  let attempts = 0;
+  while (!window.CalendarSync && attempts < 50) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  if (!window.CalendarSync) {
+    throw new Error('Calendar sync not loaded. Please refresh and try again.');
+  }
+}
+

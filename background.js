@@ -1,12 +1,117 @@
 // background.js
 console.log("Taggle: Background script loaded");
 
-// Initialize folder watching when extension starts
+// Import calendar services for background sync
+importScripts('calendar-service-v3.js', 'calendar-sync.js');
+
+// Initialize calendar auto-sync when extension starts
 chrome.runtime.onStartup.addListener(async () => {
-  console.log("Taggle: Extension startup - initializing folder watcher");
+  console.log("Taggle: Extension startup - initializing services");
+  await initializeCalendarAutoSync();
   // Note: Folder handles cannot be restored after browser restart
   // Users will need to reconnect folders after restart due to security restrictions
 });
+
+// Also initialize when extension is installed/enabled
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log("Taggle: Extension installed - initializing services");
+  
+  // Create context menus
+  try {
+    chrome.contextMenus.create({
+      id: "taggle-save-selection",
+      title: "Save text to tag…",
+      contexts: ["selection"]
+    });
+    
+    chrome.contextMenus.create({
+      id: "taggle-save-image",
+      title: "Save image to tag…",
+      contexts: ["image"]
+    });
+    
+    console.log("Taggle: Context menus created successfully");
+  } catch (error) {
+    console.error("Taggle: Error creating context menus:", error);
+  }
+  
+  // Initialize calendar auto-sync
+  await initializeCalendarAutoSync();
+});
+
+// Initialize calendar auto-sync
+async function initializeCalendarAutoSync() {
+  try {
+    // Load calendar settings
+    const { 'taggle-calendar-settings': settings = {} } = 
+      await chrome.storage.local.get('taggle-calendar-settings');
+    
+    if (settings.clientId) {
+      console.log("Taggle: Initializing calendar service in background");
+      await CalendarService.initialize(settings.clientId);
+      
+      // Check if we have calendar tags to sync
+      const { 'taggle-calendar-tags': calendarTags = {} } = 
+        await chrome.storage.local.get('taggle-calendar-tags');
+      
+      if (Object.keys(calendarTags).length > 0) {
+        console.log("Taggle: Starting background auto-sync");
+        startBackgroundAutoSync();
+      }
+    }
+  } catch (error) {
+    console.warn("Taggle: Could not initialize calendar auto-sync:", error);
+  }
+}
+
+// Background auto-sync timer
+let backgroundSyncTimer = null;
+
+function startBackgroundAutoSync() {
+  // Clear any existing timer
+  if (backgroundSyncTimer) {
+    clearInterval(backgroundSyncTimer);
+  }
+  
+  // Start new timer
+  backgroundSyncTimer = setInterval(async () => {
+    try {
+      console.log("Taggle: Background auto-sync running...");
+      
+      // Check if we have valid calendar settings and tags
+      const { 'taggle-calendar-settings': settings = {}, 'taggle-calendar-tags': calendarTags = {} } = 
+        await chrome.storage.local.get(['taggle-calendar-settings', 'taggle-calendar-tags']);
+      
+      if (settings.clientId && Object.keys(calendarTags).length > 0) {
+        // Initialize service if needed
+        if (!CalendarService.isInitialized) {
+          await CalendarService.initialize(settings.clientId);
+        }
+        
+        // Try to get a token (non-interactive)
+        if (!CalendarService.isSignedIn()) {
+          try {
+            const token = await chrome.identity.getAuthToken({ interactive: false });
+            if (token) {
+              CalendarService.accessToken = typeof token === 'object' && token.token ? token.token : token;
+              console.log("Taggle: Background auth successful");
+            }
+          } catch (authError) {
+            console.log("Taggle: Background auth failed (user needs to sign in manually)");
+            return;
+          }
+        }
+        
+        // Sync calendar tags
+        await CalendarSync.syncAllCalendarTags();
+      }
+    } catch (error) {
+      console.warn("Taggle: Background sync error:", error);
+    }
+  }, 15 * 60 * 1000); // 15 minutes (reduced API calls)
+  
+  console.log("Taggle: Background auto-sync timer started (15 min interval)");
+}
 
 // Handle extension icon click
 chrome.action.onClicked.addListener(async () => {
@@ -60,25 +165,6 @@ async function openTaggleWindow() {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  try {
-    chrome.contextMenus.create({
-      id: "taggle-save-selection",
-      title: "Save text to tag…",
-      contexts: ["selection"]
-    });
-    
-    chrome.contextMenus.create({
-      id: "taggle-save-image",
-      title: "Save image to tag…",
-      contexts: ["image"]
-    });
-    
-    console.log("Taggle: Context menus created successfully");
-  } catch (error) {
-    console.error("Taggle: Error creating context menus:", error);
-  }
-});
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   try {
