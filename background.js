@@ -8,6 +8,58 @@ chrome.runtime.onStartup.addListener(async () => {
   // Users will need to reconnect folders after restart due to security restrictions
 });
 
+// Handle extension icon click
+chrome.action.onClicked.addListener(async () => {
+  await openTaggleWindow();
+});
+
+// Handle keyboard command
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === "_execute_action") {
+    await openTaggleWindow();
+  }
+});
+
+// Function to open the large centered Taggle window
+async function openTaggleWindow() {
+  try {
+    // Check if window already exists
+    const existingWindows = await chrome.windows.getAll();
+    const taggleWindow = existingWindows.find(w => w.type === 'popup' && w.width === 1100);
+    
+    if (taggleWindow) {
+      // Focus existing window
+      await chrome.windows.update(taggleWindow.id, { focused: true });
+      return;
+    }
+    
+    // Get current screen info
+    const currentWindow = await chrome.windows.getCurrent();
+    
+    // Calculate center position for a 1100x700 window
+    const width = 1100;
+    const height = 700;
+    const left = Math.round((currentWindow.width - width) / 2) + (currentWindow.left || 0);
+    const top = Math.round((currentWindow.height - height) / 2) + (currentWindow.top || 0);
+    
+    // Create new centered window
+    const newWindow = await chrome.windows.create({
+      url: chrome.runtime.getURL('popup.html'),
+      type: 'popup',
+      width: width,
+      height: height,
+      left: left,
+      top: top,
+      focused: true
+    });
+    
+    console.log("Taggle: Opened centered window:", newWindow.id);
+    
+  } catch (error) {
+    console.error("Taggle: Error opening window:", error);
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   try {
     chrome.contextMenus.create({
