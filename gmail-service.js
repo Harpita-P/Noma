@@ -151,7 +151,7 @@ class GmailService {
   }
 
   // Get recent emails
-  static async getRecentEmails(maxResults = 5) {
+  static async getRecentEmails(maxResults = 50) {
     try {
       console.log(`Taggle: Fetching ${maxResults} recent emails`);
       

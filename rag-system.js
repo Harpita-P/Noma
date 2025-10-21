@@ -3,7 +3,7 @@
 
 class RAGSystem {
   constructor() {
-    this.maxContextChars = 30000;
+    this.maxContextChars = 15000;
     this.chunkSize = 1800; // characters per chunk
     this.chunkOverlap = 200; // overlap between chunks
     this.embeddingModel = 'text-embedding-3-small';
@@ -48,6 +48,11 @@ class RAGSystem {
     } catch (error) {
       console.error('Taggle RAG: Failed to save OpenAI API key:', error);
     }
+  }
+
+  // Check if OpenAI API key is available
+  hasApiKey() {
+    return !!this.openaiApiKey;
   }
 
   // Set up IndexedDB for vector storage
@@ -146,6 +151,7 @@ class RAGSystem {
     console.log('Taggle RAG: Context analysis:', analysis);
     return analysis;
   }
+
 
   // Split text into overlapping chunks
   async chunkText(text, contextId) {
@@ -461,6 +467,69 @@ class RAGSystem {
       throw error;
     }
   }
+
+  // Search for relevant chunks using semantic similarity
+  async searchChunks(query, tagId, topK = 3) {
+    try {
+      console.log(`Taggle RAG: Searching for chunks related to: "${query}"`);
+      
+      // Generate embedding for the query
+      const queryEmbedding = await this.generateFullTextEmbedding(query);
+      
+      // Get all chunks and embeddings for this tag
+      const chunks = await this.getAllChunks(tagId);
+      const embeddings = await this.getAllEmbeddings(tagId);
+      
+      if (chunks.length === 0) {
+        console.log('Taggle RAG: No chunks found for tag');
+        return [];
+      }
+      
+      // Calculate similarity scores
+      const results = [];
+      for (const chunk of chunks) {
+        const embedding = embeddings.find(e => e.chunkId === chunk.id);
+        if (embedding) {
+          const similarity = this.cosineSimilarity(queryEmbedding, embedding.vector);
+          results.push({
+            chunk: chunk,
+            score: similarity
+          });
+        }
+      }
+      
+      // Sort by similarity and return top K
+      results.sort((a, b) => b.score - a.score);
+      const topResults = results.slice(0, topK);
+      
+      console.log(`Taggle RAG: Found ${topResults.length} relevant chunks`);
+      return topResults;
+      
+    } catch (error) {
+      console.error('Taggle RAG: Error searching chunks:', error);
+      return [];
+    }
+  }
+
+  // Calculate cosine similarity between two vectors
+  cosineSimilarity(vecA, vecB) {
+    if (vecA.length !== vecB.length) {
+      throw new Error('Vectors must have same length');
+    }
+    
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    
+    for (let i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i];
+      normA += vecA[i] * vecA[i];
+      normB += vecB[i] * vecB[i];
+    }
+    
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
 
   // Check if embeddings already exist for a context
   async hasEmbeddings(contextId) {

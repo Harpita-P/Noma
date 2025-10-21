@@ -74,7 +74,7 @@ class GmailSync {
         tagId: tag.id,
         tagName: tag.name,
         type: 'recent', // Only recent emails supported
-        maxResults: gmailConfig.maxResults || 5,
+        maxResults: gmailConfig.maxResults || 50,
         autoSync: gmailConfig.autoSync !== false, // default true
         lastSynced: null,
         createdAt: new Date().toISOString(),
@@ -156,7 +156,7 @@ class GmailSync {
         const existingEmails = gmailContexts[tagId] || [];
         const mergedEmails = [...emails, ...existingEmails];
         
-        // Remove duplicates by message ID and keep most recent 5
+        // Remove duplicates by message ID and keep most recent 50
         const uniqueEmails = mergedEmails.filter((email, index, arr) => 
           arr.findIndex(e => e.id === email.id) === index
         ).slice(0, gmailConfig.maxResults);

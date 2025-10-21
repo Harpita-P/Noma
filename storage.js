@@ -92,6 +92,30 @@ export async function getContexts(tagId) {
       console.warn("Taggle: Error fetching Gmail contexts:", gmailError);
     }
     
+    // Check if this is a Notion tag and merge Notion contexts
+    try {
+      if (typeof window !== 'undefined' && window.NotionSync) {
+        const isNotionTag = await window.NotionSync.isNotionTag(tagId);
+        if (isNotionTag) {
+          const notionContexts = await window.NotionSync.getNotionContexts(tagId);
+          // Convert Notion pages to context format and merge
+          const formattedNotionContexts = notionContexts.map(page => ({
+            id: page.id,
+            type: "notion",
+            text: window.NotionSync.formatNotionContentForAI([page]),
+            title: page.title,
+            url: `https://notion.so/${page.pageId}`,
+            source: "notion",
+            createdAt: page.createdAt,
+            notionData: page // Store full page data
+          }));
+          return [...formattedNotionContexts, ...regularContexts];
+        }
+      }
+    } catch (notionError) {
+      console.warn("Taggle: Error fetching Notion contexts:", notionError);
+    }
+    
     return regularContexts;
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
@@ -165,6 +189,7 @@ export async function getContextTypeCounts(tagId) {
       image: 0,
       calendar: 0,
       email: 0,
+      notion: 0,
       total: contexts.length
     };
 
@@ -175,6 +200,8 @@ export async function getContextTypeCounts(tagId) {
         counts.calendar++;
       } else if (ctx.type === "email") {
         counts.email++;
+      } else if (ctx.type === "notion") {
+        counts.notion++;
       } else if (ctx.type === "text") {
         if (ctx.source === "pdf-upload" || (ctx.title && ctx.title.startsWith("PDF:"))) {
           counts.pdf++;
@@ -188,7 +215,7 @@ export async function getContextTypeCounts(tagId) {
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
       console.log("Taggle: Extension context invalidated, returning empty counts");
-      return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, total: 0 };
+      return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, notion: 0, total: 0 };
     }
     throw error;
   }
@@ -217,16 +244,27 @@ export async function getAllTagsWithContextCounts() {
       console.warn('Taggle: Could not load Gmail tags:', error);
     }
 
+    // Get Notion tags to check which tags are Notion tags
+    let notionTags = {};
+    try {
+      const { 'taggle-notion-tags': storedNotionTags = {} } = await chrome.storage.local.get('taggle-notion-tags');
+      notionTags = storedNotionTags;
+    } catch (error) {
+      console.warn('Taggle: Could not load Notion tags:', error);
+    }
+
     for (const tag of tags) {
       const counts = await getContextTypeCounts(tag.id);
       const isCalendarTag = !!calendarTags[tag.id];
       const isGmailTag = !!gmailTags[tag.id];
+      const isNotionTag = !!notionTags[tag.id];
       
       tagsWithCounts.push({
         ...tag,
         contextCounts: counts,
         isCalendarTag: isCalendarTag,
-        isGmailTag: isGmailTag
+        isGmailTag: isGmailTag,
+        isNotionTag: isNotionTag
       });
     }
 
