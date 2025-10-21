@@ -2,6 +2,11 @@
 // Behavior: In any focused editable, press Ctrl+Space (Cmd+Space on Mac) -> send field text to Gemini Nano -> replace entire field with result.
 
 (function () {
+  // Prevent multiple executions of content script
+  if (window.taggleContentScriptLoaded) {
+    return;
+  }
+  window.taggleContentScriptLoaded = true;
 
   
   // Inject CSS for blue cursor
@@ -95,34 +100,43 @@
   // Load dynamic services for context integration
   const loadDynamicServices = async () => {
     try {
-      // Load calendar service script (Manifest V3 compatible)
-      const calendarServiceScript = document.createElement('script');
-      calendarServiceScript.src = chrome.runtime.getURL('calendar-service-v3.js');
-      document.head.appendChild(calendarServiceScript);
+      // Use unique flags to prevent duplicate script loading
+      if (!window.taggleCalendarServiceLoaded) {
+        const calendarServiceScript = document.createElement('script');
+        calendarServiceScript.src = chrome.runtime.getURL('calendar-service-v3.js');
+        document.head.appendChild(calendarServiceScript);
+        window.taggleCalendarServiceLoaded = true;
+      }
 
-      // Load calendar sync script
-      const calendarSyncScript = document.createElement('script');
-      calendarSyncScript.src = chrome.runtime.getURL('calendar-sync.js');
-      document.head.appendChild(calendarSyncScript);
+      if (!window.taggleCalendarSyncLoaded) {
+        const calendarSyncScript = document.createElement('script');
+        calendarSyncScript.src = chrome.runtime.getURL('calendar-sync.js');
+        document.head.appendChild(calendarSyncScript);
+        window.taggleCalendarSyncLoaded = true;
+      }
 
-      // Load Gmail service script
-      const gmailServiceScript = document.createElement('script');
-      gmailServiceScript.src = chrome.runtime.getURL('gmail-service.js');
-      document.head.appendChild(gmailServiceScript);
+      if (!window.taggleGmailServiceLoaded) {
+        const gmailServiceScript = document.createElement('script');
+        gmailServiceScript.src = chrome.runtime.getURL('gmail-service.js');
+        document.head.appendChild(gmailServiceScript);
+        window.taggleGmailServiceLoaded = true;
+      }
 
-      // Load Gmail sync script
-      const gmailSyncScript = document.createElement('script');
-      gmailSyncScript.src = chrome.runtime.getURL('gmail-sync.js');
-      document.head.appendChild(gmailSyncScript);
+      if (!window.taggleGmailSyncLoaded) {
+        const gmailSyncScript = document.createElement('script');
+        gmailSyncScript.src = chrome.runtime.getURL('gmail-sync.js');
+        document.head.appendChild(gmailSyncScript);
+        window.taggleGmailSyncLoaded = true;
+      }
 
       // Wait a bit for scripts to load
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Initialize services if available
-      if (window.CalendarSync) {
+      if (window.CalendarSync && !window.CalendarSync.initialized) {
         await window.CalendarSync.initialize();
       }
-      if (window.GmailSync) {
+      if (window.GmailSync && !window.GmailSync.initialized) {
         await window.GmailSync.initialize();
       }
     } catch (error) {
@@ -135,16 +149,19 @@
   // Load RAG system for semantic search
   const loadRAGSystem = async () => {
     try {
-      // Load RAG system script
-      const ragScript = document.createElement('script');
-      ragScript.src = chrome.runtime.getURL('rag-system.js');
-      document.head.appendChild(ragScript);
+      // Check if RAG system is already loaded using unique flag
+      if (!window.taggleRAGSystemLoaded) {
+        const ragScript = document.createElement('script');
+        ragScript.src = chrome.runtime.getURL('rag-system.js');
+        document.head.appendChild(ragScript);
+        window.taggleRAGSystemLoaded = true;
 
-      // Wait for RAG system to load
-      await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait for RAG system to load
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
       
-      // Initialize RAG system if available
-      if (window.RAGSystem) {
+      // Initialize RAG system if available and not already initialized
+      if (window.RAGSystem && !window.taggleRAG) {
         window.taggleRAG = new window.RAGSystem();
         await window.taggleRAG.initialize();
         console.log('Taggle RAG: System initialized in content script');
@@ -155,7 +172,7 @@
   };
 
   // Load services
-  loadCalendarServices();
+  loadDynamicServices();
   loadRAGSystem();
 
   // --- Helpers ---------------------------------------------------------------
