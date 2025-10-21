@@ -129,6 +129,20 @@
         window.taggleGmailSyncLoaded = true;
       }
 
+      if (!window.taggleNotionServiceLoaded) {
+        const notionServiceScript = document.createElement('script');
+        notionServiceScript.src = chrome.runtime.getURL('notion-service.js');
+        document.head.appendChild(notionServiceScript);
+        window.taggleNotionServiceLoaded = true;
+      }
+
+      if (!window.taggleNotionSyncLoaded) {
+        const notionSyncScript = document.createElement('script');
+        notionSyncScript.src = chrome.runtime.getURL('notion-sync.js');
+        document.head.appendChild(notionSyncScript);
+        window.taggleNotionSyncLoaded = true;
+      }
+
       // Wait a bit for scripts to load
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -138,6 +152,9 @@
       }
       if (window.GmailSync && !window.GmailSync.initialized) {
         await window.GmailSync.initialize();
+      }
+      if (window.NotionSync && !window.NotionSync.initialized) {
+        await window.NotionSync.initialize();
       }
     } catch (error) {
       console.warn("Taggle: Could not load dynamic services:", error);
@@ -480,6 +497,42 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         console.warn("Taggle: Error fetching Gmail contexts:", gmailError);
       }
       
+      // Check if this is a Notion tag and merge Notion contexts
+      try {
+        // Direct Notion context lookup (without NotionSync dependency)
+        const { 'taggle-notion-tags': notionTags = {}, 'taggle-notion-contexts': notionContexts = {} } = 
+          await chrome.storage.local.get(['taggle-notion-tags', 'taggle-notion-contexts']);
+        
+        console.log('Taggle: Checking Notion tags for tagId:', tagId);
+        console.log('Taggle: Available Notion tags:', Object.keys(notionTags));
+        
+        // Check if this tagId is a Notion tag
+        const isNotionTag = notionTags[tagId] !== undefined;
+        console.log('Taggle: Is Notion tag?', tagId, isNotionTag);
+        
+        if (isNotionTag) {
+          const pages = notionContexts[tagId] || [];
+          console.log('Taggle: Found Notion pages:', pages.length);
+          
+          // Convert Notion pages to context format and merge
+          const formattedNotionContexts = pages.map(page => ({
+            id: page.id || `notion-${Date.now()}-${Math.random()}`,
+            type: "notion",
+            text: `# ${page.title}\n\n${page.content}`,
+            title: page.title || 'Notion Page',
+            url: `https://notion.so/${page.pageId}`,
+            source: "notion",
+            createdAt: page.createdAt || new Date().toISOString(),
+            notionData: page // Store full page data
+          }));
+          
+          console.log('Taggle: Formatted Notion contexts:', formattedNotionContexts.length);
+          return [...formattedNotionContexts, ...regularContexts];
+        }
+      } catch (notionError) {
+        console.warn("Taggle: Error fetching Notion contexts:", notionError);
+      }
+      
       return regularContexts;
     } catch (error) {
       if (error.message.includes('Extension context invalidated')) {
@@ -500,6 +553,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         image: 0,
         calendar: 0,
         email: 0,
+        notion: 0,
         total: contexts.length
       };
       
@@ -510,6 +564,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           counts.calendar++;
         } else if (ctx.type === "email") {
           counts.email++;
+        } else if (ctx.type === "notion") {
+          counts.notion++;
         } else if (ctx.type === "text") {
           if (ctx.source === "pdf-upload" || (ctx.title && ctx.title.startsWith("PDF:"))) {
             counts.pdf++;
@@ -523,7 +579,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     } catch (error) {
       if (error.message.includes('Extension context invalidated')) {
         console.log("Taggle: Extension context invalidated, returning empty counts");
-        return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, total: 0 };
+        return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, notion: 0, total: 0 };
       }
       throw error;
     }
@@ -552,16 +608,27 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         console.warn('Taggle: Could not load Gmail tags:', error);
       }
       
+      // Get Notion tags to check which tags are Notion tags
+      let notionTags = {};
+      try {
+        const { 'taggle-notion-tags': storedNotionTags = {} } = await chrome.storage.local.get('taggle-notion-tags');
+        notionTags = storedNotionTags;
+      } catch (error) {
+        console.warn('Taggle: Could not load Notion tags:', error);
+      }
+      
       for (const tag of tags) {
         const counts = await getContextTypeCounts(tag.id);
         const isCalendarTag = !!calendarTags[tag.id];
         const isGmailTag = !!gmailTags[tag.id];
+        const isNotionTag = !!notionTags[tag.id];
         
         tagsWithCounts.push({
           ...tag,
           contextCounts: counts,
           isCalendarTag: isCalendarTag,
-          isGmailTag: isGmailTag
+          isGmailTag: isGmailTag,
+          isNotionTag: isNotionTag
         });
       }
       
@@ -899,10 +966,10 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       storedCaretPosition: storedCaretPosition
     });
 
-    // Sort tags: dynamic tags (calendar, gmail) first, then regular tags
+    // Sort tags: dynamic tags (calendar, gmail, notion) first, then regular tags
     const sortedTags = tagsWithCounts.sort((a, b) => {
-      const aIsDynamic = a.isCalendarTag || a.isGmailTag;
-      const bIsDynamic = b.isCalendarTag || b.isGmailTag;
+      const aIsDynamic = a.isCalendarTag || a.isGmailTag || a.isNotionTag;
+      const bIsDynamic = b.isCalendarTag || b.isGmailTag || b.isNotionTag;
       
       // Dynamic tags first
       if (aIsDynamic && !bIsDynamic) return -1;
@@ -916,15 +983,16 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     currentTagColors = tagsWithColors;
 
     // Separate dynamic and regular tags for UI grouping
-    const dynamicTags = tagsWithColors.filter(tag => tag.isCalendarTag || tag.isGmailTag);
-    const regularTags = tagsWithColors.filter(tag => !tag.isCalendarTag && !tag.isGmailTag);
+    const dynamicTags = tagsWithColors.filter(tag => tag.isCalendarTag || tag.isGmailTag || tag.isNotionTag);
+    const regularTags = tagsWithColors.filter(tag => !tag.isCalendarTag && !tag.isGmailTag && !tag.isNotionTag);
 
     // Helper function to render a tag
     const renderTag = (tag, index, isDynamic = false) => {
       const tagColor = tag.color;
-      const counts = tag.contextCounts || { text: 0, pdf: 0, image: 0, calendar: 0, total: 0 };
+      const counts = tag.contextCounts || { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, notion: 0, total: 0 };
       const isCalendarTag = tag.isCalendarTag || false;
       const isGmailTag = tag.isGmailTag || false;
+      const isNotionTag = tag.isNotionTag || false;
       
       // Create context type indicators
       const indicators = [];
@@ -951,6 +1019,17 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           border: 1px solid rgba(255,255,255,0.2);
         " title="Gmail Tag" />`);
+      } else if (isNotionTag) {
+        // Notion icon as tilted tile for dynamic tags
+        indicators.push(`<img src="${chrome.runtime.getURL('not-logo.png')}" style="
+          width: 14px;
+          height: 14px;
+          margin-right: 3px;
+          border-radius: 3px;
+          transform: rotate(-8deg);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+        " title="Notion Tag" />`);
       } else {
         // Regular numbered indicators
         if (counts.text > 0) {
@@ -1112,9 +1191,9 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       indicatorContainer.onmouseenter = () => {
         console.log("Taggle: Hovering over indicators for tag ID:", tagId);
         if (tagId) {
-          // Check if this is a dynamic tag (calendar or Gmail tag)
+          // Check if this is a dynamic tag (calendar, Gmail, or Notion tag)
           const tag = currentTagColors.find(t => t.id === tagId);
-          if (tag && (tag.isCalendarTag || tag.isGmailTag)) {
+          if (tag && (tag.isCalendarTag || tag.isGmailTag || tag.isNotionTag)) {
             // Show simple info panel for dynamic tags
             setTimeout(() => showDynamicTagInfo(tag, tagElement), 100);
           } else {
@@ -1241,6 +1320,32 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           line-height: 1.4;
           text-align: center;
         ">Connected to your Gmail<br>Automatically syncs data</div>
+      `;
+    } else if (tag.isNotionTag) {
+      infoContent = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        ">
+          <img src="${chrome.runtime.getURL('not-logo.png')}" style="
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+          " />
+          <div style="
+            font-size: 10px;
+            color: #fff;
+            font-weight: 600;
+          ">Notion</div>
+        </div>
+        <div style="
+          font-size: 9px;
+          color: #ccc;
+          line-height: 1.4;
+          text-align: center;
+        ">Connected to your Notion page<br>Automatically syncs data</div>
       `;
     }
 

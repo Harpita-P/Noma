@@ -517,7 +517,7 @@
               <span class="integration-icon">📧</span>
               <div class="integration-details">
                 <span class="integration-name">Gmail</span>
-                <span class="integration-desc">@myEmails - Recent emails (5)</span>
+                <span class="integration-desc">@myEmails - Recent emails (50)</span>
               </div>
             </div>
             <div class="integration-actions">
@@ -526,6 +526,52 @@
               <button id="gmail-disconnect" class="btn btn-compact" style="display: none;">Disconnect</button>
             </div>
           </div>
+          
+          <!-- Notion Integration -->
+          <div class="integration-item">
+            <div class="integration-info">
+              <span class="integration-icon">📝</span>
+              <div class="integration-details">
+                <span class="integration-name">Notion</span>
+                <span class="integration-desc">@myNotion - Sync page content</span>
+              </div>
+            </div>
+            <div class="integration-actions">
+              <div class="integration-status" id="notion-status">Not connected</div>
+              <button id="notion-setup" class="btn btn-primary btn-compact">Setup</button>
+              <button id="notion-disconnect" class="btn btn-compact" style="display: none;">Disconnect</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Notion Setup Modal (hidden by default) -->
+        <div id="notion-setup-modal" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Notion Setup</h4>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" style="font-size: 13px;">Integration Token</label>
+            <input id="notion-token" type="password" placeholder="secret_..." style="width: 100%; margin-bottom: 8px;" />
+            <div style="font-size: 11px; color: #6b7280;">Create an integration at notion.so/my-integrations</div>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" style="font-size: 13px;">Page URL or ID</label>
+            <input id="notion-page-id" type="text" placeholder="https://notion.so/..." style="width: 100%; margin-bottom: 8px;" />
+            <div style="font-size: 11px; color: #6b7280;">Share the page with your integration first</div>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" style="font-size: 13px;">Tag Name</label>
+            <input id="notion-tag-name" type="text" placeholder="myNotion" style="width: 100%;" />
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button id="notion-save" class="btn btn-primary" style="flex: 1;">Save & Connect</button>
+            <button id="notion-cancel" class="btn" style="flex: 1;">Cancel</button>
+          </div>
+          <div id="notion-setup-status" class="status-text" style="margin-top: 8px;"></div>
+        </div>
+        
+        <!-- Notion Tags List -->
+        <div id="notion-tags-section" style="display: none; margin-top: 16px;">
+          <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Notion Tags</h4>
+          <div id="notion-tags-list"></div>
         </div>
         
         <!-- Hidden elements for compatibility -->

@@ -44,6 +44,19 @@ const els = {
   gmailConnect: document.getElementById("gmail-connect"),
   gmailDisconnect: document.getElementById("gmail-disconnect"),
   gmailStatus: document.getElementById("gmail-status"),
+  // Notion elements
+  notionSetup: document.getElementById("notion-setup"),
+  notionDisconnect: document.getElementById("notion-disconnect"),
+  notionStatus: document.getElementById("notion-status"),
+  notionSetupModal: document.getElementById("notion-setup-modal"),
+  notionToken: document.getElementById("notion-token"),
+  notionPageId: document.getElementById("notion-page-id"),
+  notionTagName: document.getElementById("notion-tag-name"),
+  notionSave: document.getElementById("notion-save"),
+  notionCancel: document.getElementById("notion-cancel"),
+  notionSetupStatus: document.getElementById("notion-setup-status"),
+  notionTagsSection: document.getElementById("notion-tags-section"),
+  notionTagsList: document.getElementById("notion-tags-list"),
 };
 
 els.saveOpenaiKey.onclick = onSaveOpenAIKey;
@@ -71,6 +84,12 @@ els.calendarDisconnect.onclick = onCalendarDisconnect;
 els.gmailConnect.onclick = onGmailConnect;
 els.gmailDisconnect.onclick = onGmailDisconnect;
 
+// Notion event handlers
+els.notionSetup.onclick = onNotionSetup;
+els.notionDisconnect.onclick = onNotionDisconnect;
+els.notionSave.onclick = onNotionSave;
+els.notionCancel.onclick = onNotionCancel;
+
 // Load PDF extractor
 const pdfScript = document.createElement('script');
 pdfScript.src = 'pdf-extractor.js';
@@ -94,6 +113,19 @@ document.head.appendChild(gmailServiceScript);
 const gmailSyncScript = document.createElement('script');
 gmailSyncScript.src = 'gmail-sync.js';
 document.head.appendChild(gmailSyncScript);
+
+// Load Notion services
+const notionServiceScript = document.createElement('script');
+notionServiceScript.src = 'notion-service.js';
+notionServiceScript.onload = () => console.log('Taggle: notion-service.js loaded');
+notionServiceScript.onerror = (e) => console.error('Taggle: Failed to load notion-service.js', e);
+document.head.appendChild(notionServiceScript);
+
+const notionSyncScript = document.createElement('script');
+notionSyncScript.src = 'notion-sync.js';
+notionSyncScript.onload = () => console.log('Taggle: notion-sync.js loaded');
+notionSyncScript.onerror = (e) => console.error('Taggle: Failed to load notion-sync.js', e);
+document.head.appendChild(notionSyncScript);
 // Load RAG system
 const ragScript = document.createElement('script');
 ragScript.src = 'rag-system.js';
@@ -225,6 +257,13 @@ async function render() {
     await renderGmailComponents();
   } catch (error) {
     console.warn('Could not render Gmail components:', error);
+  }
+  
+  // Render Notion components
+  try {
+    await renderNotionComponents();
+  } catch (error) {
+    console.warn('Could not render Notion components:', error);
   }
   
   // Update integration statuses
@@ -977,6 +1016,7 @@ async function waitForGmailSync() {
 function updateIntegrationStatuses() {
   updateCalendarStatus();
   updateGmailStatus();
+  updateNotionStatus();
 }
 
 function updateCalendarStatus() {
@@ -1145,7 +1185,7 @@ async function createDefaultGmailTag() {
     
     const gmailConfig = {
       type: 'recent',
-      maxResults: 5
+      maxResults: 50
     };
     
     await GmailSync.createGmailTag('myEmails', gmailConfig);
@@ -1153,5 +1193,311 @@ async function createDefaultGmailTag() {
   } catch (error) {
     console.error('Failed to create default Gmail tag:', error);
   }
+}
+
+// ===== NOTION FUNCTIONS =====
+
+// Show Notion setup modal
+function onNotionSetup() {
+  els.notionSetupModal.style.display = 'block';
+  els.notionSetupStatus.textContent = '';
+}
+
+// Hide Notion setup modal
+function onNotionCancel() {
+  els.notionSetupModal.style.display = 'none';
+  els.notionToken.value = '';
+  els.notionPageId.value = '';
+  els.notionTagName.value = '';
+  els.notionSetupStatus.textContent = '';
+}
+
+// Save Notion settings and create tag
+async function onNotionSave() {
+  try {
+    const token = els.notionToken.value.trim();
+    const pageId = els.notionPageId.value.trim();
+    const tagName = els.notionTagName.value.trim() || 'myNotion';
+    
+    if (!token) {
+      els.notionSetupStatus.textContent = 'Please enter an integration token';
+      els.notionSetupStatus.style.color = '#ef4444';
+      return;
+    }
+    
+    if (!pageId) {
+      els.notionSetupStatus.textContent = 'Please enter a page URL or ID';
+      els.notionSetupStatus.style.color = '#ef4444';
+      return;
+    }
+    
+    els.notionSave.disabled = true;
+    els.notionSetupStatus.textContent = 'Testing connection...';
+    els.notionSetupStatus.style.color = '#6b7280';
+    
+    // Wait for Notion services to load
+    await waitForNotionService();
+    await waitForNotionSync();
+    
+    // Test the connection
+    const testResult = await window.NotionSync.testConnection(token);
+    if (!testResult.success) {
+      els.notionSetupStatus.textContent = 'Connection failed: ' + testResult.error;
+      els.notionSetupStatus.style.color = '#ef4444';
+      els.notionSave.disabled = false;
+      return;
+    }
+    
+    els.notionSetupStatus.textContent = 'Saving settings...';
+    
+    // Save settings
+    await window.NotionSync.saveSettings({ token });
+    
+    // Initialize the service
+    await window.NotionSync.initialize();
+    
+    els.notionSetupStatus.textContent = 'Creating tag...';
+    
+    // Create a regular tag first
+    const tag = await createTag(tagName);
+    if (!tag) {
+      els.notionSetupStatus.textContent = 'Tag name already exists';
+      els.notionSetupStatus.style.color = '#ef4444';
+      els.notionSave.disabled = false;
+      return;
+    }
+    
+    // Create Notion tag
+    const result = await window.NotionSync.createNotionTag(tag.id, pageId, tagName);
+    
+    if (result.success) {
+      els.notionSetupStatus.textContent = '✓ Connected successfully!';
+      els.notionSetupStatus.style.color = '#10b981';
+      
+      // Start auto-sync
+      window.NotionSync.startAutoSync();
+      
+      // Close modal and refresh
+      setTimeout(() => {
+        onNotionCancel();
+        render();
+        renderNotionComponents();
+        updateIntegrationStatuses();
+      }, 1500);
+    } else {
+      els.notionSetupStatus.textContent = 'Failed: ' + result.error;
+      els.notionSetupStatus.style.color = '#ef4444';
+      // Delete the tag we created since Notion setup failed
+      await deleteTag(tag.id);
+    }
+    
+  } catch (error) {
+    console.error('Notion setup failed:', error);
+    els.notionSetupStatus.textContent = 'Setup failed: ' + error.message;
+    els.notionSetupStatus.style.color = '#ef4444';
+  } finally {
+    els.notionSave.disabled = false;
+  }
+}
+
+// Disconnect Notion
+async function onNotionDisconnect() {
+  if (!confirm('Disconnect Notion? This will delete all Notion tags and their contexts.')) {
+    return;
+  }
+  
+  try {
+    await waitForNotionSync();
+    
+    // Get all Notion tags
+    const notionTags = await window.NotionSync.getAllNotionTags();
+    
+    // Delete each Notion tag and its regular tag
+    for (const tagId of Object.keys(notionTags)) {
+      await window.NotionSync.deleteNotionTag(tagId);
+      await deleteTag(tagId);
+    }
+    
+    // Clear settings
+    await window.NotionSync.saveSettings({});
+    
+    // Stop auto-sync
+    window.NotionSync.stopAutoSync();
+    
+    await render();
+    await renderNotionComponents();
+    updateIntegrationStatuses();
+    
+  } catch (error) {
+    console.error('Notion disconnect failed:', error);
+    alert('Disconnect failed: ' + error.message);
+  }
+}
+
+// Render Notion components
+async function renderNotionComponents() {
+  try {
+    // Check if Notion services are available
+    if (typeof window.NotionSync === 'undefined') {
+      console.log('Taggle: NotionSync not loaded yet, skipping render');
+      return;
+    }
+    
+    const notionTags = await window.NotionSync.getAllNotionTags();
+    if (!notionTags) {
+      console.log('Taggle: No Notion tags found');
+      return;
+    }
+    
+    const notionTagIds = Object.keys(notionTags);
+    
+    if (notionTagIds.length === 0) {
+      els.notionTagsSection.style.display = 'none';
+      return;
+    }
+    
+    els.notionTagsSection.style.display = 'block';
+    
+    let html = '';
+    for (const tagId of notionTagIds) {
+      const config = notionTags[tagId];
+      const lastSynced = config.lastSynced ? new Date(config.lastSynced).toLocaleString() : 'Never';
+      const pageIdDisplay = config.pageId ? config.pageId.substring(0, 8) + '...' : 'Unknown';
+      
+      html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
+          <div>
+            <div style="font-weight: 500; color: #1f2937;">@${config.tagName || 'Unnamed'}</div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">Page ID: ${pageIdDisplay}</div>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Last synced: ${lastSynced}</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-small notion-sync-btn" data-tag-id="${tagId}">Sync</button>
+            <button class="btn btn-small notion-delete-btn" data-tag-id="${tagId}" style="background: #ef4444; color: white; border-color: #ef4444;">Delete</button>
+          </div>
+        </div>
+      `;
+    }
+    
+    els.notionTagsList.innerHTML = html;
+    
+    // Add event listeners for sync buttons
+    els.notionTagsList.querySelectorAll('.notion-sync-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const tagId = btn.dataset.tagId;
+        try {
+          btn.disabled = true;
+          btn.textContent = 'Syncing...';
+          await window.NotionSync.syncNotionTag(tagId);
+          await renderNotionComponents();
+          await render();
+        } catch (error) {
+          console.error('Error syncing Notion tag:', error);
+          alert('Sync failed: ' + error.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Sync';
+        }
+      };
+    });
+    
+    // Add event listeners for delete buttons
+    els.notionTagsList.querySelectorAll('.notion-delete-btn').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('Delete this Notion tag? This will also delete the regular tag and all its contexts.')) {
+          return;
+        }
+        
+        const tagId = btn.dataset.tagId;
+        try {
+          await window.NotionSync.deleteNotionTag(tagId);
+          await deleteTag(tagId);
+          await renderNotionComponents();
+          await render();
+        } catch (error) {
+          console.error('Error deleting Notion tag:', error);
+          alert('Delete failed: ' + error.message);
+        }
+      };
+    });
+    
+  } catch (error) {
+    console.error('Error rendering Notion components:', error);
+  }
+}
+
+// Update Notion status
+function updateNotionStatus() {
+  const statusEl = els.notionStatus;
+  if (!statusEl) return;
+  
+  try {
+    // Check if Notion is configured
+    if (typeof window.NotionSync === 'undefined') {
+      statusEl.textContent = 'Not connected';
+      statusEl.className = 'integration-status';
+      els.notionSetup.style.display = 'inline-flex';
+      els.notionDisconnect.style.display = 'none';
+      return;
+    }
+    
+    window.NotionSync.getSettings().then(settings => {
+      window.NotionSync.getAllNotionTags().then(notionTags => {
+        const hasToken = !!settings.token;
+        const hasTag = Object.keys(notionTags).length > 0;
+        
+        if (hasToken && hasTag) {
+          statusEl.textContent = 'Connected';
+          statusEl.className = 'integration-status connected';
+          els.notionSetup.style.display = 'none';
+          els.notionDisconnect.style.display = 'inline-flex';
+        } else {
+          statusEl.textContent = 'Not connected';
+          statusEl.className = 'integration-status';
+          els.notionSetup.style.display = 'inline-flex';
+          els.notionDisconnect.style.display = 'none';
+        }
+      }).catch(err => {
+        console.warn('Taggle: Error getting Notion tags:', err);
+        statusEl.textContent = 'Not connected';
+        statusEl.className = 'integration-status';
+      });
+    }).catch(err => {
+      console.warn('Taggle: Error getting Notion settings:', err);
+      statusEl.textContent = 'Not connected';
+      statusEl.className = 'integration-status';
+    });
+  } catch (error) {
+    console.warn('Taggle: Error updating Notion status:', error);
+    statusEl.textContent = 'Not connected';
+    statusEl.className = 'integration-status';
+  }
+}
+
+// Helper functions
+async function waitForNotionService() {
+  let attempts = 0;
+  while (!window.NotionService && attempts < 100) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  if (!window.NotionService) {
+    console.error('NotionService not found after waiting');
+    throw new Error('Notion service not loaded. Please refresh and try again.');
+  }
+  return window.NotionService;
+}
+
+async function waitForNotionSync() {
+  let attempts = 0;
+  while (!window.NotionSync && attempts < 100) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  if (!window.NotionSync) {
+    console.error('NotionSync not found after waiting');
+    throw new Error('Notion sync not loaded. Please refresh and try again.');
+  }
+  return window.NotionSync;
 }
 
