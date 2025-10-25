@@ -1,6 +1,3 @@
-// Taggle v1 — Prompt API edition (LanguageModel.*)
-// Behavior: In any focused editable, press Ctrl+Space (Cmd+Space on Mac) -> send field text to Gemini Nano -> replace entire field with result.
-
 (function () {
   // Prevent multiple executions of content script
   if (window.taggleContentScriptLoaded) {
@@ -69,6 +66,15 @@
     
     #noma-logo-button:hover {
       transform: none !important;
+    }
+
+    /* Search input focus state - minimal grey */
+    #tag-search-input:focus {
+      border-color: rgba(128, 128, 128, 0.2) !important;
+    }
+    
+    #tag-search-input::placeholder {
+      color: rgba(128, 128, 128, 0.4);
     }
   `;
   document.head.appendChild(style);
@@ -1202,13 +1208,12 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       const selectedBorder = isDarkMode ? `${tagColor}60` : `${tagColor}50`;
       const textColor = tagColor;
       
-      return `<div class="taggle-tag-item" data-tag="${tag.name}" data-index="${index}" style="
+      return `<div class="taggle-tag-item" data-tag="${tag.name}" data-index="${index}" data-tag-color="${tagColor}" style="
         padding: 4px 12px; cursor: pointer; border-radius: 16px;
         background: ${baseBackground}; border: 1px solid ${baseBorder};
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         font-weight: 500; font-size: 12px; color: ${textColor};
         white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
-        ${index === 0 ? `background: ${selectedBackground}; border-color: ${selectedBorder}; transform: scale(1.02);` : ''}
       ">
         <span style="
           display: inline-block; width: 5px; height: 5px; border-radius: 50%;
@@ -1230,23 +1235,56 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         border-bottom: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
         display: flex;
         align-items: center;
-        gap: 8px;
+        justify-content: space-between;
+        gap: 12px;
         border-radius: 12px 12px 0 0;
       ">
-        <img src="${chrome.runtime.getURL('noma-logo.png')}" style="
-          width: 24px;
-          height: 24px;
-          object-fit: contain;
-          cursor: pointer;
-        " title="Open Noma (Alt+T)" id="noma-logo-button" />
-        <span style="
-          font-size: 13px;
-          font-weight: 600;
-          color: ${isDarkMode ? '#ffffff' : '#000000'};
-          opacity: 0.8;
-        ">Noma</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img src="${chrome.runtime.getURL('noma-logo.png')}" style="
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            cursor: pointer;
+          " title="Open Noma (Alt+T)" id="noma-logo-button" />
+          <span style="
+            font-size: 13px;
+            font-weight: 600;
+            color: ${isDarkMode ? '#ffffff' : '#000000'};
+            opacity: 0.8;
+          ">Noma</span>
+        </div>
+        <div style="position: relative; display: inline-block;">
+          <svg style="
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            opacity: 0.4;
+            pointer-events: none;
+          " viewBox="0 0 24 24" fill="none" stroke="${isDarkMode ? '#ffffff' : '#000000'}" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <input 
+            type="text" 
+            id="tag-search-input" 
+            placeholder="Search your tags..."
+            style="
+              width: 120px;
+              padding: 3px 10px 3px 26px;
+              border: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'};
+              border-radius: 12px;
+              background: ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'};
+              color: ${isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'};
+              font-size: 10px;
+              outline: none;
+            "
+          />
+        </div>
       </div>
-      <div style="
+      <div id="tag-list-container" style="
         padding: 12px 16px; display: flex; flex-direction: column; gap: 12px;
         max-height: 280px; overflow-y: auto;
         background: ${isDarkMode ? '#0a0a0a' : '#ffffff'};
@@ -1291,100 +1329,156 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       };
     }
 
-    // Add click handlers and hover effects
-    tagDropdown.querySelectorAll('.taggle-tag-item').forEach((item, index) => {
-      const tagName = item.dataset.tag;
-      const tagColor = tagsWithColors[index].color;
-      
-      item.onclick = () => selectTag(item.dataset.tag);
-      
-      item.onmouseenter = () => {
-        console.log("Taggle: MOUSE ENTER detected on tag:", tagName);
-        selectedTagIndex = parseInt(item.dataset.index);
+    // Add search functionality
+    const searchInput = tagDropdown.querySelector('#tag-search-input');
+    const tagListContainer = tagDropdown.querySelector('#tag-list-container');
+    
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        
+        // Filter tags based on search term
+        const filteredDynamicTags = dynamicTags.filter(tag => 
+          tag.name.toLowerCase().includes(searchTerm)
+        );
+        const filteredRegularTags = regularTags.filter(tag => 
+          tag.name.toLowerCase().includes(searchTerm)
+        );
+        
+        // Re-render tag list with filtered results
+        tagListContainer.innerHTML = `
+          ${filteredDynamicTags.length > 0 ? `
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              ${filteredDynamicTags.map((tag, index) => renderTag(tag, index, true)).join('')}
+            </div>
+          ` : ''}
+          ${filteredDynamicTags.length > 0 && filteredRegularTags.length > 0 ? `
+            <div style="
+              height: 1px; background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+              margin: 4px 0;
+            "></div>
+          ` : ''}
+          ${filteredRegularTags.length > 0 ? `
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              ${filteredRegularTags.map((tag, index) => renderTag(tag, filteredDynamicTags.length + index, false)).join('')}
+            </div>
+          ` : ''}
+          ${filteredDynamicTags.length === 0 && filteredRegularTags.length === 0 ? `
+            <div style="
+              text-align: center;
+              padding: 20px;
+              color: ${isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'};
+              font-size: 12px;
+            ">No tags found</div>
+          ` : ''}
+        `;
+        
+        // Re-attach event listeners to filtered tags
+        attachTagEventListeners();
+        
+        // Reset selection to first item
+        selectedTagIndex = 0;
         updateTagSelection();
-        
-        // Mark this tag as hovered
-        document.querySelectorAll('.taggle-tag-item').forEach(t => t.removeAttribute('data-hovered'));
-        item.setAttribute('data-hovered', 'true');
-        
-        // Add subtle hover effect if not selected
-        if (index !== selectedTagIndex) {
-          const hoverBackground = isDarkMode ? `${tagColor}25` : `${tagColor}20`;
-          const hoverBorder = isDarkMode ? `${tagColor}50` : `${tagColor}40`;
-          item.style.background = hoverBackground;
-          item.style.borderColor = hoverBorder;
-          item.style.transform = 'scale(1.01)';
-        }
-        
-        // Don't show context preview on general tag hover anymore
-        // Context preview will only show when hovering over the indicator squares
-      };
+      });
       
-      item.onmouseleave = () => {
-        // Remove hover effect if not selected
-        if (index !== selectedTagIndex) {
-          const baseBackground = isDarkMode ? `${tagColor}20` : `${tagColor}15`;
-          const baseBorder = isDarkMode ? `${tagColor}40` : `${tagColor}30`;
-          item.style.background = baseBackground;
-          item.style.borderColor = baseBorder;
-          item.style.transform = '';
-        }
-        
-        // Hide context preview panel with delay to allow moving to panel
-        setTimeout(() => {
-          if (!contextPreviewPanel?.matches(':hover') && !item.matches(':hover')) {
-            hideContextPreview();
-          }
-        }, 200);
-      };
-    });
+      // Focus search input when tag selector opens
+      setTimeout(() => searchInput.focus(), 100);
+    }
 
-    // Add hover events specifically to indicator squares
-    tagDropdown.querySelectorAll('.tag-indicators').forEach(indicatorContainer => {
-      const tagId = indicatorContainer.dataset.tagId;
-      const tagElement = indicatorContainer.closest('.taggle-tag-item');
-      
-      indicatorContainer.onmouseenter = () => {
-        console.log("Taggle: Hovering over indicators for tag ID:", tagId);
-        if (tagId) {
-          // Check if this is a dynamic tag (calendar, Gmail, Notion, or Pinterest tag)
-          const tag = currentTagColors.find(t => t.id === tagId);
-          if (tag && (tag.isCalendarTag || tag.isGmailTag || tag.isNotionTag || tag.isPinterestTag)) {
-            // Show simple info panel for dynamic tags
-            setTimeout(() => showDynamicTagInfo(tag, tagElement), 100);
-          } else {
-            // Show regular context preview for normal tags
-            setTimeout(() => showContextPreview(tagId, tagElement), 100);
+    // Function to attach event listeners to tag items
+    function attachTagEventListeners() {
+      tagDropdown.querySelectorAll('.taggle-tag-item').forEach((item, index) => {
+        const tagName = item.dataset.tag;
+        const actualIndex = parseInt(item.dataset.index);
+        const tagColor = tagsWithColors[actualIndex]?.color || getTagColor(tagName);
+        
+        item.onclick = () => selectTag(item.dataset.tag);
+        
+        item.onmouseenter = () => {
+          console.log("Taggle: MOUSE ENTER detected on tag:", tagName);
+          selectedTagIndex = parseInt(item.dataset.index);
+          updateTagSelection();
+          
+          // Mark this tag as hovered
+          document.querySelectorAll('.taggle-tag-item').forEach(t => t.removeAttribute('data-hovered'));
+          item.setAttribute('data-hovered', 'true');
+          
+          // Add subtle hover effect if not selected
+          if (index !== selectedTagIndex) {
+            const hoverBackground = isDarkMode ? `${tagColor}25` : `${tagColor}20`;
+            const hoverBorder = isDarkMode ? `${tagColor}50` : `${tagColor}40`;
+            item.style.background = hoverBackground;
+            item.style.borderColor = hoverBorder;
+            item.style.transform = 'scale(1.01)';
           }
-        }
-      };
-      
-      indicatorContainer.onmouseleave = () => {
-        // Hide context preview panel with delay to allow moving to panel
-        setTimeout(() => {
-          if (!contextPreviewPanel?.matches(':hover') && !indicatorContainer.matches(':hover')) {
-            hideContextPreview();
+        };
+        
+        item.onmouseleave = () => {
+          // Remove hover effect if not selected
+          if (index !== selectedTagIndex) {
+            const baseBackground = isDarkMode ? `${tagColor}20` : `${tagColor}15`;
+            const baseBorder = isDarkMode ? `${tagColor}40` : `${tagColor}30`;
+            item.style.background = baseBackground;
+            item.style.borderColor = baseBorder;
+            item.style.transform = '';
           }
-        }, 200);
-      };
-    });
+          
+          // Hide context preview panel with delay to allow moving to panel
+          setTimeout(() => {
+            if (!contextPreviewPanel?.matches(':hover') && !item.matches(':hover')) {
+              hideContextPreview();
+            }
+          }, 200);
+        };
+      });
+      
+      // Add hover events specifically to indicator squares
+      tagDropdown.querySelectorAll('.tag-indicators').forEach(indicatorContainer => {
+        const tagId = indicatorContainer.dataset.tagId;
+        const tagElement = indicatorContainer.closest('.taggle-tag-item');
+        
+        indicatorContainer.onmouseenter = () => {
+          console.log("Taggle: Hovering over indicators for tag ID:", tagId);
+          if (tagId) {
+            const tag = currentTagColors.find(t => t.id === tagId);
+            if (tag && (tag.isCalendarTag || tag.isGmailTag || tag.isNotionTag || tag.isPinterestTag)) {
+              setTimeout(() => showDynamicTagInfo(tag, tagElement), 100);
+            } else {
+              setTimeout(() => showContextPreview(tagId, tagElement), 100);
+            }
+          }
+        };
+        
+        indicatorContainer.onmouseleave = () => {
+          setTimeout(() => {
+            if (!contextPreviewPanel?.matches(':hover') && !indicatorContainer.matches(':hover')) {
+              hideContextPreview();
+            }
+          }, 200);
+        };
+      });
+    }
+
+    // Initial attachment of event listeners
+    attachTagEventListeners();
 
     // Show toast with instructions
     toast("Tag selector active. Use ↑↓ arrows and Enter to select.");
   }
 
   function updateTagSelection() {
-    if (!tagDropdown || !currentTagColors.length) return;
+    if (!tagDropdown) return;
     
     tagDropdown.querySelectorAll('.taggle-tag-item').forEach((item, index) => {
-      const tagColor = currentTagColors[index]?.color || getTagColor(item.dataset.tag);
+      const itemIndex = parseInt(item.dataset.index);
+      const tagColor = item.dataset.tagColor || getTagColor(item.dataset.tag);
       
-      if (index === selectedTagIndex) {
-        // Highlight selected pill
-        const selectedBackground = isDarkMode ? `${tagColor}30` : `${tagColor}25`;
-        const selectedBorder = isDarkMode ? `${tagColor}60` : `${tagColor}50`;
-        item.style.background = selectedBackground;
-        item.style.borderColor = selectedBorder;
+      if (itemIndex === selectedTagIndex) {
+        // Highlight selected pill - keep same color, just scale
+        const baseBackground = isDarkMode ? `${tagColor}20` : `${tagColor}15`;
+        const baseBorder = isDarkMode ? `${tagColor}40` : `${tagColor}30`;
+        item.style.background = baseBackground;
+        item.style.borderColor = baseBorder;
         item.style.transform = 'scale(1.02)';
         item.style.boxShadow = `0 2px 8px ${tagColor}20`;
         
