@@ -1375,6 +1375,33 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         gap: 12px;
         border-radius: 12px 12px 0 0;
       ">
+        
+        ${liveContext ? `
+          <div style="
+            position: absolute;
+            top: 4px;
+            right: 16px;
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            border-radius: 8px;
+            padding: 2px 8px;
+            font-size: 9px;
+            font-weight: 600;
+            color: #a855f7;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          ">
+            <span style="
+              width: 6px;
+              height: 6px;
+              border-radius: 50%;
+              background: #a855f7;
+              animation: pulse 2s ease-in-out infinite;
+            "></span>
+            Live Context Active
+          </div>
+        ` : ''}
         <div style="display: flex; align-items: center; gap: 8px;">
           <img src="${chrome.runtime.getURL('noma-logo.png')}" style="
             width: 24px;

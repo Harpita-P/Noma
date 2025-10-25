@@ -333,16 +333,12 @@ async function render() {
       return sum + (c.text || c.selection || '').length;
     }, 0);
     
-    const ragIndicator = largeContexts.length > 0 ? 
-      `<span style="color: #10b981; font-size: 10px; margin-left: 4px;" title="RAG-enabled for large content">🧠</span>` : '';
-    
     parts.push(`
       <div class="tag-item">
         <div class="tag-header">
           <div>
             <span class="tag-name">@${t.name}</span>
             <span class="tag-count">${ctx.length} context${ctx.length !== 1 ? 's' : ''}</span>
-            ${ragIndicator}
             ${totalTextLength > 25000 ? `<div style="font-size: 10px; color: #6b7280; margin-top: 2px;">${Math.round(totalTextLength/1000)}k chars</div>` : ''}
           </div>
           <button data-del="${t.id}" class="btn btn-small">Delete</button>
