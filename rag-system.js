@@ -7,7 +7,7 @@ class RAGSystem {
     this.chunkSize = 1800; // characters per chunk
     this.chunkOverlap = 200; // overlap between chunks
     this.embeddingModel = 'text-embedding-3-small';
-    this.dbName = 'TaggleRAGStore';
+    this.dbName = 'NomaRAGStore';
     this.dbVersion = 1;
     this.db = null;
     this.openaiApiKey = null;
@@ -17,23 +17,23 @@ class RAGSystem {
   async initialize() {
     await this.initializeDatabase();
     await this.loadOpenAIKey();
-    console.log('Taggle RAG: System initialized');
+    console.log('Noma RAG: System initialized');
   }
 
   // Load OpenAI API key from extension storage
   async loadOpenAIKey() {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        const result = await chrome.storage.local.get('taggle-openai-key');
-        this.openaiApiKey = result['taggle-openai-key'] || null;
+        const result = await chrome.storage.local.get('noma-openai-key');
+        this.openaiApiKey = result['noma-openai-key'] || null;
         if (this.openaiApiKey) {
-          console.log('Taggle RAG: OpenAI API key loaded from storage');
+          console.log('Noma RAG: OpenAI API key loaded from storage');
         } else {
-          console.warn('Taggle RAG: No OpenAI API key found in storage');
+          console.warn('Noma RAG: No OpenAI API key found in storage');
         }
       }
     } catch (error) {
-      console.error('Taggle RAG: Failed to load OpenAI API key:', error);
+      console.error('Noma RAG: Failed to load OpenAI API key:', error);
     }
   }
 
@@ -42,11 +42,11 @@ class RAGSystem {
     this.openaiApiKey = apiKey;
     try {
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        await chrome.storage.local.set({ 'taggle-openai-key': apiKey });
-        console.log('Taggle RAG: OpenAI API key saved to storage');
+        await chrome.storage.local.set({ 'noma-openai-key': apiKey });
+        console.log('Noma RAG: OpenAI API key saved to storage');
       }
     } catch (error) {
-      console.error('Taggle RAG: Failed to save OpenAI API key:', error);
+      console.error('Noma RAG: Failed to save OpenAI API key:', error);
     }
   }
 
@@ -61,13 +61,13 @@ class RAGSystem {
       const request = indexedDB.open(this.dbName, this.dbVersion);
       
       request.onerror = () => {
-        console.error('Taggle RAG: Failed to open database:', request.error);
+        console.error('Noma RAG: Failed to open database:', request.error);
         reject(request.error);
       };
       
       request.onsuccess = () => {
         this.db = request.result;
-        console.log('Taggle RAG: Database initialized successfully');
+        console.log('Noma RAG: Database initialized successfully');
         resolve();
       };
       
@@ -91,7 +91,7 @@ class RAGSystem {
           const metadataStore = db.createObjectStore('metadata', { keyPath: 'id' });
         }
         
-        console.log('Taggle RAG: Database schema created');
+        console.log('Noma RAG: Database schema created');
       };
     });
   }
@@ -101,33 +101,33 @@ class RAGSystem {
     try {
       // Check if we're in a Chrome extension context
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        const result = await chrome.storage.local.get(['taggle-openai-key']);
-        this.openaiApiKey = result['taggle-openai-key'];
+        const result = await chrome.storage.local.get(['noma-openai-key']);
+        this.openaiApiKey = result['noma-openai-key'];
         if (this.openaiApiKey) {
-          console.log('Taggle RAG: OpenAI API key loaded successfully');
+          console.log('Noma RAG: OpenAI API key loaded successfully');
         } else {
-          console.warn('Taggle RAG: OpenAI API key not found. Please set it in extension options.');
+          console.warn('Noma RAG: OpenAI API key not found. Please set it in extension options.');
         }
       } else {
         // Fallback for testing outside extension context
-        console.warn('Taggle RAG: Running outside Chrome extension context. Using localStorage fallback.');
-        this.openaiApiKey = localStorage.getItem('taggle-openai-api-key');
+        console.warn('Noma RAG: Running outside Chrome extension context. Using localStorage fallback.');
+        this.openaiApiKey = localStorage.getItem('noma-openai-api-key');
         if (!this.openaiApiKey) {
-          console.warn('Taggle RAG: OpenAI API key not found in localStorage. You can set it for testing.');
+          console.warn('Noma RAG: OpenAI API key not found in localStorage. You can set it for testing.');
         }
       }
     } catch (error) {
-      console.error('Taggle RAG: Failed to load OpenAI API key:', error);
+      console.error('Noma RAG: Failed to load OpenAI API key:', error);
     }
   }
 
   // Check if text exceeds character limit
   isLargeContext(text) {
     const charCount = text.length;
-    console.log(`Taggle RAG: Text length: ${charCount} characters`);
+    console.log(`Noma RAG: Text length: ${charCount} characters`);
     
     if (charCount > this.maxContextChars) {
-      console.log(`Taggle RAG: Large context detected (${charCount} > ${this.maxContextChars})`);
+      console.log(`Noma RAG: Large context detected (${charCount} > ${this.maxContextChars})`);
       return true;
     }
     
@@ -148,14 +148,14 @@ class RAGSystem {
       chunks: isLarge ? Math.ceil(textBlob.length / this.chunkSize) : 0
     };
     
-    console.log('Taggle RAG: Context analysis:', analysis);
+    console.log('Noma RAG: Context analysis:', analysis);
     return analysis;
   }
 
 
   // Split text into overlapping chunks
   async chunkText(text, contextId) {
-    console.log(`Taggle RAG: Starting chunking for ${text.length} characters`);
+    console.log(`Noma RAG: Starting chunking for ${text.length} characters`);
     
     const chunks = [];
     let startIndex = 0;
@@ -163,7 +163,7 @@ class RAGSystem {
     const maxChunks = 100; // Safety limit to prevent infinite loops
     
     while (startIndex < text.length && chunkIndex < maxChunks) {
-      console.log(`Taggle RAG: Processing chunk ${chunkIndex}, startIndex: ${startIndex}`);
+      console.log(`Noma RAG: Processing chunk ${chunkIndex}, startIndex: ${startIndex}`);
       
       const endIndex = Math.min(startIndex + this.chunkSize, text.length);
       let chunkText = text.slice(startIndex, endIndex);
@@ -183,7 +183,7 @@ class RAGSystem {
       
       // Ensure we're making progress
       if (chunkText.length === 0) {
-        console.warn(`Taggle RAG: Empty chunk at index ${chunkIndex}, breaking`);
+        console.warn(`Noma RAG: Empty chunk at index ${chunkIndex}, breaking`);
         break;
       }
       
@@ -205,7 +205,7 @@ class RAGSystem {
       
       // Ensure we're making progress (prevent infinite loops)
       if (nextStart <= startIndex) {
-        console.warn(`Taggle RAG: No progress made, advancing by minimum amount`);
+        console.warn(`Noma RAG: No progress made, advancing by minimum amount`);
         startIndex = startIndex + Math.max(100, Math.floor(this.chunkSize / 4));
       } else {
         startIndex = nextStart;
@@ -213,7 +213,7 @@ class RAGSystem {
       
       // Additional safety check: if we're very close to the end, break
       if (startIndex >= text.length - 50) {
-        console.log(`Taggle RAG: Near end of text, stopping chunking`);
+        console.log(`Noma RAG: Near end of text, stopping chunking`);
         break;
       }
       
@@ -226,10 +226,10 @@ class RAGSystem {
     }
     
     if (chunkIndex >= maxChunks) {
-      console.warn(`Taggle RAG: Reached maximum chunk limit (${maxChunks})`);
+      console.warn(`Noma RAG: Reached maximum chunk limit (${maxChunks})`);
     }
     
-    console.log(`Taggle RAG: Created ${chunks.length} chunks for context ${contextId}`);
+    console.log(`Noma RAG: Created ${chunks.length} chunks for context ${contextId}`);
     return chunks;
   }
 
@@ -241,10 +241,10 @@ class RAGSystem {
   // Generate single embedding for full text (main approach)
   async generateFullTextEmbedding(text) {
     if (!this.openaiApiKey) {
-      throw new Error('OpenAI API key not configured. Please set it in the Taggle extension popup.');
+      throw new Error('OpenAI API key not configured. Please set it in the Noma extension popup.');
     }
 
-    console.log(`Taggle RAG: Generating single embedding for ${text.length} characters`);
+    console.log(`Noma RAG: Generating single embedding for ${text.length} characters`);
 
     try {
       const requestBody = {
@@ -268,11 +268,11 @@ class RAGSystem {
       }
 
       const data = await response.json();
-      console.log('Taggle RAG: Successfully generated full text embedding');
+      console.log('Noma RAG: Successfully generated full text embedding');
       
       return data.data[0].embedding;
     } catch (error) {
-      console.error('Taggle RAG: Failed to generate full text embedding:', error);
+      console.error('Noma RAG: Failed to generate full text embedding:', error);
       throw error;
     }
   }
@@ -283,7 +283,7 @@ class RAGSystem {
       throw new Error('OpenAI API key not configured');
     }
 
-    console.log(`Taggle RAG: Generating query embedding for: "${query}"`);
+    console.log(`Noma RAG: Generating query embedding for: "${query}"`);
 
     try {
       const requestBody = {
@@ -307,11 +307,11 @@ class RAGSystem {
       }
 
       const data = await response.json();
-      console.log('Taggle RAG: Successfully generated query embedding');
+      console.log('Noma RAG: Successfully generated query embedding');
       
       return data.data[0].embedding;
     } catch (error) {
-      console.error('Taggle RAG: Failed to generate query embedding:', error);
+      console.error('Noma RAG: Failed to generate query embedding:', error);
       throw error;
     }
   }
@@ -344,7 +344,7 @@ class RAGSystem {
 
   // Search for relevant chunks based on query
   async searchChunks(query, tagId = null, topK = 5) {
-    console.log(`Taggle RAG: Searching for "${query}" (topK: ${topK})`);
+    console.log(`Noma RAG: Searching for "${query}" (topK: ${topK})`);
 
     try {
       // Generate embedding for the query
@@ -354,7 +354,7 @@ class RAGSystem {
       const chunks = await this.getAllChunks(tagId);
       const embeddings = await this.getAllEmbeddings(tagId);
 
-      console.log(`Taggle RAG: Found ${chunks.length} chunks and ${embeddings.length} embeddings`);
+      console.log(`Noma RAG: Found ${chunks.length} chunks and ${embeddings.length} embeddings`);
 
       if (chunks.length === 0) {
         return [];
@@ -380,14 +380,14 @@ class RAGSystem {
       similarities.sort((a, b) => b.similarity - a.similarity);
       const topResults = similarities.slice(0, topK);
 
-      console.log(`Taggle RAG: Top ${topResults.length} results:`, 
+      console.log(`Noma RAG: Top ${topResults.length} results:`, 
         topResults.map(r => ({ score: r.score, preview: r.chunk.text.substring(0, 100) + '...' }))
       );
 
       return topResults;
 
     } catch (error) {
-      console.error('Taggle RAG: Search failed:', error);
+      console.error('Noma RAG: Search failed:', error);
       throw error;
     }
   }
@@ -461,9 +461,9 @@ class RAGSystem {
         await embeddingsStore.put(embedding);
       }
       
-      console.log(`Taggle RAG: Stored ${chunks.length} chunks with embeddings for tag ${tagId}`);
+      console.log(`Noma RAG: Stored ${chunks.length} chunks with embeddings for tag ${tagId}`);
     } catch (error) {
-      console.error('Taggle RAG: Failed to store chunks:', error);
+      console.error('Noma RAG: Failed to store chunks:', error);
       throw error;
     }
   }
@@ -471,7 +471,7 @@ class RAGSystem {
   // Search for relevant chunks using semantic similarity
   async searchChunks(query, tagId, topK = 3) {
     try {
-      console.log(`Taggle RAG: Searching for chunks related to: "${query}"`);
+      console.log(`Noma RAG: Searching for chunks related to: "${query}"`);
       
       // Generate embedding for the query
       const queryEmbedding = await this.generateFullTextEmbedding(query);
@@ -481,7 +481,7 @@ class RAGSystem {
       const embeddings = await this.getAllEmbeddings(tagId);
       
       if (chunks.length === 0) {
-        console.log('Taggle RAG: No chunks found for tag');
+        console.log('Noma RAG: No chunks found for tag');
         return [];
       }
       
@@ -502,11 +502,11 @@ class RAGSystem {
       results.sort((a, b) => b.score - a.score);
       const topResults = results.slice(0, topK);
       
-      console.log(`Taggle RAG: Found ${topResults.length} relevant chunks`);
+      console.log(`Noma RAG: Found ${topResults.length} relevant chunks`);
       return topResults;
       
     } catch (error) {
-      console.error('Taggle RAG: Error searching chunks:', error);
+      console.error('Noma RAG: Error searching chunks:', error);
       return [];
     }
   }
@@ -541,12 +541,12 @@ class RAGSystem {
       
       request.onsuccess = () => {
         const count = request.result;
-        console.log(`Taggle RAG: Found ${count} existing chunks for context ${contextId}`);
+        console.log(`Noma RAG: Found ${count} existing chunks for context ${contextId}`);
         resolve(count > 0);
       };
       
       request.onerror = () => {
-        console.error('Taggle RAG: Error checking embeddings:', request.error);
+        console.error('Noma RAG: Error checking embeddings:', request.error);
         reject(request.error);
       };
     });
@@ -555,11 +555,11 @@ class RAGSystem {
   // Process large context and create embeddings
   async processLargeContext(textBlob, contextId, tagId) {
     try {
-      console.log(`Taggle RAG: Processing large context ${contextId} for tag ${tagId}`);
+      console.log(`Noma RAG: Processing large context ${contextId} for tag ${tagId}`);
       
       // Check if already processed
       if (await this.hasEmbeddings(contextId)) {
-        console.log('Taggle RAG: Embeddings already exist, skipping processing');
+        console.log('Noma RAG: Embeddings already exist, skipping processing');
         return;
       }
       
@@ -567,21 +567,21 @@ class RAGSystem {
       const chunks = await this.chunkText(textBlob, contextId);
       
       // Generate embeddings for each chunk
-      console.log(`Taggle RAG: Generating embeddings for ${chunks.length} chunks`);
+      console.log(`Noma RAG: Generating embeddings for ${chunks.length} chunks`);
       const embeddings = [];
       
       for (let i = 0; i < chunks.length; i++) {
         try {
           const embedding = await this.generateFullTextEmbedding(chunks[i].text);
           embeddings.push(embedding);
-          console.log(`Taggle RAG: Generated embedding ${i + 1}/${chunks.length}`);
+          console.log(`Noma RAG: Generated embedding ${i + 1}/${chunks.length}`);
           
           // Small delay to avoid rate limiting
           if (i < chunks.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
         } catch (error) {
-          console.error(`Taggle RAG: Failed to generate embedding for chunk ${i}:`, error);
+          console.error(`Noma RAG: Failed to generate embedding for chunk ${i}:`, error);
           throw error;
         }
       }
@@ -589,9 +589,9 @@ class RAGSystem {
       // Store in database
       await this.storeChunksWithEmbeddings(chunks, embeddings, tagId);
       
-      console.log(`Taggle RAG: Successfully processed large context ${contextId}`);
+      console.log(`Noma RAG: Successfully processed large context ${contextId}`);
     } catch (error) {
-      console.error('Taggle RAG: Failed to process large context:', error);
+      console.error('Noma RAG: Failed to process large context:', error);
       throw error;
     }
   }

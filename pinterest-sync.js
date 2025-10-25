@@ -3,8 +3,8 @@
 
 class PinterestSync {
   constructor() {
-    this.PINTEREST_TAGS_KEY = 'taggle-pinterest-tags';
-    this.PINTEREST_CONTEXTS_KEY = 'taggle-pinterest-contexts';
+    this.PINTEREST_TAGS_KEY = 'noma-pinterest-tags';
+    this.PINTEREST_CONTEXTS_KEY = 'noma-pinterest-contexts';
     this.pinterestService = null;
   }
 

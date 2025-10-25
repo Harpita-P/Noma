@@ -135,27 +135,27 @@ document.head.appendChild(gmailSyncScript);
 // Load Notion services
 const notionServiceScript = document.createElement('script');
 notionServiceScript.src = 'notion-service.js';
-notionServiceScript.onload = () => console.log('Taggle: notion-service.js loaded');
-notionServiceScript.onerror = (e) => console.error('Taggle: Failed to load notion-service.js', e);
+notionServiceScript.onload = () => console.log('Noma: notion-service.js loaded');
+notionServiceScript.onerror = (e) => console.error('Noma: Failed to load notion-service.js', e);
 document.head.appendChild(notionServiceScript);
 
 const notionSyncScript = document.createElement('script');
 notionSyncScript.src = 'notion-sync.js';
-notionSyncScript.onload = () => console.log('Taggle: notion-sync.js loaded');
-notionSyncScript.onerror = (e) => console.error('Taggle: Failed to load notion-sync.js', e);
+notionSyncScript.onload = () => console.log('Noma: notion-sync.js loaded');
+notionSyncScript.onerror = (e) => console.error('Noma: Failed to load notion-sync.js', e);
 document.head.appendChild(notionSyncScript);
 
 // Load Pinterest services
 const pinterestServiceScript = document.createElement('script');
 pinterestServiceScript.src = 'pinterest-service.js';
-pinterestServiceScript.onload = () => console.log('Taggle: pinterest-service.js loaded');
-pinterestServiceScript.onerror = (e) => console.error('Taggle: Failed to load pinterest-service.js', e);
+pinterestServiceScript.onload = () => console.log('Noma: pinterest-service.js loaded');
+pinterestServiceScript.onerror = (e) => console.error('Noma: Failed to load pinterest-service.js', e);
 document.head.appendChild(pinterestServiceScript);
 
 const pinterestSyncScript = document.createElement('script');
 pinterestSyncScript.src = 'pinterest-sync.js';
-pinterestSyncScript.onload = () => console.log('Taggle: pinterest-sync.js loaded');
-pinterestSyncScript.onerror = (e) => console.error('Taggle: Failed to load pinterest-sync.js', e);
+pinterestSyncScript.onload = () => console.log('Noma: pinterest-sync.js loaded');
+pinterestSyncScript.onerror = (e) => console.error('Noma: Failed to load pinterest-sync.js', e);
 document.head.appendChild(pinterestSyncScript);
 
 // Load RAG system
@@ -177,16 +177,16 @@ async function initializeRAG() {
     }
     
     if (!window.RAGSystem) {
-      console.warn('Taggle RAG: RAG system not loaded');
+      console.warn('Noma RAG: RAG system not loaded');
       return null;
     }
     
     ragSystem = new window.RAGSystem();
     await ragSystem.initialize();
-    console.log('Taggle RAG: System initialized successfully');
+    console.log('Noma RAG: System initialized successfully');
     return ragSystem;
   } catch (error) {
-    console.error('Taggle RAG: Initialization failed:', error);
+    console.error('Noma RAG: Initialization failed:', error);
     return null;
   }
 }
@@ -196,8 +196,8 @@ render();
 // Check and display API key status on load
 async function checkApiKeyStatus() {
   try {
-    const result = await chrome.storage.local.get(['taggle-openai-key']);
-    const hasKey = !!result['taggle-openai-key'];
+    const result = await chrome.storage.local.get(['noma-openai-key']);
+    const hasKey = !!result['noma-openai-key'];
     
     if (hasKey) {
       els.openaiKeyStatus.textContent = '✓ API key configured (RAG enabled for large contexts)';
@@ -232,7 +232,7 @@ async function onSaveOpenAIKey() {
     els.openaiKeyStatus.textContent = 'Saving...';
     
     // Save to storage
-    await chrome.storage.local.set({ 'taggle-openai-key': apiKey });
+    await chrome.storage.local.set({ 'noma-openai-key': apiKey });
     
     // Update RAG system if initialized
     if (ragSystem) {
@@ -494,7 +494,7 @@ async function processLargeContextsForTag(tagId, tagName, largeContexts) {
     if (!ragSystem) {
       ragSystem = await initializeRAG();
       if (!ragSystem) {
-        console.warn('Taggle RAG: Cannot process large contexts - RAG system not available');
+        console.warn('Noma RAG: Cannot process large contexts - RAG system not available');
         return;
       }
     }
@@ -510,7 +510,7 @@ async function processLargeContextsForTag(tagId, tagName, largeContexts) {
         continue;
       }
       
-      console.log(`Taggle RAG: Processing large context for @${tagName} (${textContent.length} chars)`);
+      console.log(`Noma RAG: Processing large context for @${tagName} (${textContent.length} chars)`);
       
       try {
         // Generate full text embedding
@@ -533,15 +533,15 @@ async function processLargeContextsForTag(tagId, tagName, largeContexts) {
         
         await updateContext(tagId, context.id, updates);
         
-        console.log(`Taggle RAG: Successfully processed context - ${chunks.length} chunks created`);
+        console.log(`Noma RAG: Successfully processed context - ${chunks.length} chunks created`);
         
       } catch (error) {
-        console.error(`Taggle RAG: Failed to process context for @${tagName}:`, error);
+        console.error(`Noma RAG: Failed to process context for @${tagName}:`, error);
       }
     }
     
   } catch (error) {
-    console.error('Taggle RAG: Error in processLargeContextsForTag:', error);
+    console.error('Noma RAG: Error in processLargeContextsForTag:', error);
   }
 }
 
@@ -564,7 +564,7 @@ async function searchRAGForTag(tagId, query, topK = 3) {
     }));
     
   } catch (error) {
-    console.error('Taggle RAG: Search failed:', error);
+    console.error('Noma RAG: Search failed:', error);
     return [];
   }
 }
@@ -583,7 +583,7 @@ async function onCalendarSaveSettings() {
     
     const settings = { clientId };
     
-    await chrome.storage.local.set({ 'taggle-calendar-settings': settings });
+    await chrome.storage.local.set({ 'noma-calendar-settings': settings });
     
     // Initialize calendar service
     await waitForCalendarService();
@@ -595,7 +595,7 @@ async function onCalendarSaveSettings() {
     // Update status indicator
     updateIntegrationStatuses();
     
-    console.log('Taggle: Calendar settings saved');
+    console.log('Noma: Calendar settings saved');
     
   } catch (error) {
     console.error('Error saving calendar settings:', error);
@@ -692,8 +692,8 @@ async function onCalendarSyncAll() {
 async function renderCalendarComponents() {
   try {
     // Load calendar settings
-    const { 'taggle-calendar-settings': settings = {} } = 
-      await chrome.storage.local.get('taggle-calendar-settings');
+    const { 'noma-calendar-settings': settings = {} } = 
+      await chrome.storage.local.get('noma-calendar-settings');
     
     els.calendarClientId.value = settings.clientId || '';
     
@@ -1379,13 +1379,13 @@ async function renderNotionComponents() {
   try {
     // Check if Notion services are available
     if (typeof window.NotionSync === 'undefined') {
-      console.log('Taggle: NotionSync not loaded yet, skipping render');
+      console.log('Noma: NotionSync not loaded yet, skipping render');
       return;
     }
     
     const notionTags = await window.NotionSync.getAllNotionTags();
     if (!notionTags) {
-      console.log('Taggle: No Notion tags found');
+      console.log('Noma: No Notion tags found');
       return;
     }
     
@@ -1498,17 +1498,17 @@ function updateNotionStatus() {
           els.notionDisconnect.style.display = 'none';
         }
       }).catch(err => {
-        console.warn('Taggle: Error getting Notion tags:', err);
+        console.warn('Noma: Error getting Notion tags:', err);
         statusEl.textContent = 'Not connected';
         statusEl.className = 'integration-status';
       });
     }).catch(err => {
-      console.warn('Taggle: Error getting Notion settings:', err);
+      console.warn('Noma: Error getting Notion settings:', err);
       statusEl.textContent = 'Not connected';
       statusEl.className = 'integration-status';
     });
   } catch (error) {
-    console.warn('Taggle: Error updating Notion status:', error);
+    console.warn('Noma: Error updating Notion status:', error);
     statusEl.textContent = 'Not connected';
     statusEl.className = 'integration-status';
   }
@@ -1656,13 +1656,13 @@ async function renderPinterestComponents() {
   try {
     // Check if Pinterest services are available
     if (typeof window.PinterestSync === 'undefined') {
-      console.log('Taggle: PinterestSync not loaded yet, skipping render');
+      console.log('Noma: PinterestSync not loaded yet, skipping render');
       return;
     }
     
     const pinterestTags = await window.PinterestSync.getAllPinterestTags();
     if (!pinterestTags) {
-      console.log('Taggle: No Pinterest tags found');
+      console.log('Noma: No Pinterest tags found');
       return;
     }
     
@@ -1775,12 +1775,12 @@ function updatePinterestStatus() {
         els.pinterestDisconnect.style.display = 'none';
       }
     }).catch(err => {
-      console.warn('Taggle: Error getting Pinterest tags:', err);
+      console.warn('Noma: Error getting Pinterest tags:', err);
       statusEl.textContent = 'Not connected';
       statusEl.className = 'integration-status';
     });
   } catch (error) {
-    console.warn('Taggle: Error updating Pinterest status:', error);
+    console.warn('Noma: Error updating Pinterest status:', error);
     statusEl.textContent = 'Not connected';
     statusEl.className = 'integration-status';
   }

@@ -2,9 +2,9 @@
 // Handles Gmail data synchronization and storage
 
 class GmailSync {
-  static GMAIL_TAGS_KEY = "taggle-gmail-tags"; // map: tagId -> gmail config
-  static GMAIL_CONTEXTS_KEY = "taggle-gmail-contexts"; // map: tagId -> array of emails
-  static GMAIL_SETTINGS_KEY = "taggle-gmail-settings"; // API keys and settings
+  static GMAIL_TAGS_KEY = "noma-gmail-tags"; // map: tagId -> gmail config
+  static GMAIL_CONTEXTS_KEY = "noma-gmail-contexts"; // map: tagId -> array of emails
+  static GMAIL_SETTINGS_KEY = "noma-gmail-settings"; // API keys and settings
   static SYNC_INTERVAL = 10 * 60 * 1000; // 10 minutes (Gmail has higher rate limits than Calendar)
   
   static syncTimer = null;
@@ -21,14 +21,14 @@ class GmailSync {
         // Initialize Gmail service if we have credentials
         const initialized = await GmailService.initialize(settings.clientId);
         if (initialized) {
-          console.log('Taggle: Gmail sync initialized');
+          console.log('Noma: Gmail sync initialized');
           this.startPeriodicSync();
         }
       }
 
       this.isInitialized = true;
     } catch (error) {
-      console.error('Taggle: Failed to initialize Gmail sync:', error);
+      console.error('Noma: Failed to initialize Gmail sync:', error);
     }
   }
 
@@ -39,7 +39,7 @@ class GmailSync {
         await chrome.storage.local.get(this.GMAIL_SETTINGS_KEY);
       return settings;
     } catch (error) {
-      console.error('Taggle: Error getting Gmail settings:', error);
+      console.error('Noma: Error getting Gmail settings:', error);
       return {};
     }
   }
@@ -48,9 +48,9 @@ class GmailSync {
   static async saveGmailSettings(settings) {
     try {
       await chrome.storage.local.set({ [this.GMAIL_SETTINGS_KEY]: settings });
-      console.log('Taggle: Gmail settings saved');
+      console.log('Noma: Gmail settings saved');
     } catch (error) {
-      console.error('Taggle: Error saving Gmail settings:', error);
+      console.error('Noma: Error saving Gmail settings:', error);
       throw error;
     }
   }
@@ -86,11 +86,11 @@ class GmailSync {
       // Do initial sync
       await this.syncGmailTag(tag.id);
 
-      console.log(`Taggle: Created Gmail tag @${tag.name}`);
+      console.log(`Noma: Created Gmail tag @${tag.name}`);
       return tag;
 
     } catch (error) {
-      console.error('Taggle: Error creating Gmail tag:', error);
+      console.error('Noma: Error creating Gmail tag:', error);
       throw error;
     }
   }
@@ -102,7 +102,7 @@ class GmailSync {
         await chrome.storage.local.get(this.GMAIL_TAGS_KEY);
       return gmailTags;
     } catch (error) {
-      console.error('Taggle: Error getting Gmail tags:', error);
+      console.error('Noma: Error getting Gmail tags:', error);
       return {};
     }
   }
@@ -120,18 +120,18 @@ class GmailSync {
       const gmailConfig = gmailTags[tagId];
       
       if (!gmailConfig) {
-        console.warn(`Taggle: No Gmail config found for tag ${tagId}`);
+        console.warn(`Noma: No Gmail config found for tag ${tagId}`);
         return;
       }
 
       if (!GmailService.isSignedIn()) {
-        console.warn('Taggle: Not signed in to Gmail, skipping sync');
-        console.log('Taggle: Gmail service initialized:', GmailService.isInitialized);
-        console.log('Taggle: Gmail access token exists:', !!GmailService.accessToken);
+        console.warn('Noma: Not signed in to Gmail, skipping sync');
+        console.log('Noma: Gmail service initialized:', GmailService.isInitialized);
+        console.log('Noma: Gmail access token exists:', !!GmailService.accessToken);
         return;
       }
 
-      console.log(`Taggle: Syncing Gmail tag @${gmailConfig.tagName}`);
+      console.log(`Noma: Syncing Gmail tag @${gmailConfig.tagName}`);
 
       let emails = [];
       
@@ -139,7 +139,7 @@ class GmailSync {
       const isInitialSync = !gmailConfig.lastSynced;
       const emailsToFetch = isInitialSync ? gmailConfig.maxResults : 5; // Initial: 50, Updates: 5
       
-      console.log(`Taggle: ${isInitialSync ? 'Initial' : 'Update'} sync - fetching ${emailsToFetch} emails`);
+      console.log(`Noma: ${isInitialSync ? 'Initial' : 'Update'} sync - fetching ${emailsToFetch} emails`);
       
       // Fetch emails
       emails = await GmailService.getRecentEmails(emailsToFetch);
@@ -170,10 +170,10 @@ class GmailSync {
       gmailTags[tagId].lastSynced = new Date().toISOString();
       await chrome.storage.local.set({ [this.GMAIL_TAGS_KEY]: gmailTags });
 
-      console.log(`Taggle: Synced ${emails.length} emails for @${gmailConfig.tagName} (${isInitialSync ? 'initial' : 'update'})`);
+      console.log(`Noma: Synced ${emails.length} emails for @${gmailConfig.tagName} (${isInitialSync ? 'initial' : 'update'})`);
 
     } catch (error) {
-      console.error('Taggle: Failed to sync Gmail tag:', error);
+      console.error('Noma: Failed to sync Gmail tag:', error);
       throw error;
     }
   }
@@ -185,11 +185,11 @@ class GmailSync {
       const tagIds = Object.keys(gmailTags);
       
       if (tagIds.length === 0) {
-        console.log('Taggle: No Gmail tags to sync');
+        console.log('Noma: No Gmail tags to sync');
         return;
       }
 
-      console.log(`Taggle: Syncing ${tagIds.length} Gmail tags`);
+      console.log(`Noma: Syncing ${tagIds.length} Gmail tags`);
       
       for (const tagId of tagIds) {
         const config = gmailTags[tagId];
@@ -199,15 +199,15 @@ class GmailSync {
             // Small delay between syncs to avoid rate limiting
             await new Promise(resolve => setTimeout(resolve, 500));
           } catch (error) {
-            console.error(`Taggle: Failed to sync Gmail tag ${tagId}:`, error);
+            console.error(`Noma: Failed to sync Gmail tag ${tagId}:`, error);
           }
         }
       }
 
-      console.log('Taggle: Gmail sync completed');
+      console.log('Noma: Gmail sync completed');
 
     } catch (error) {
-      console.error('Taggle: Failed to sync Gmail tags:', error);
+      console.error('Noma: Failed to sync Gmail tags:', error);
     }
   }
 
@@ -218,7 +218,7 @@ class GmailSync {
         await chrome.storage.local.get(this.GMAIL_CONTEXTS_KEY);
       return gmailContexts[tagId] || [];
     } catch (error) {
-      console.error('Taggle: Error getting Gmail contexts:', error);
+      console.error('Noma: Error getting Gmail contexts:', error);
       return [];
     }
   }
@@ -238,10 +238,10 @@ class GmailSync {
       delete gmailContexts[tagId];
       await chrome.storage.local.set({ [this.GMAIL_CONTEXTS_KEY]: gmailContexts });
 
-      console.log(`Taggle: Deleted Gmail tag ${tagId}`);
+      console.log(`Noma: Deleted Gmail tag ${tagId}`);
 
     } catch (error) {
-      console.error('Taggle: Error deleting Gmail tag:', error);
+      console.error('Noma: Error deleting Gmail tag:', error);
       throw error;
     }
   }
@@ -254,14 +254,14 @@ class GmailSync {
 
     this.syncTimer = setInterval(async () => {
       try {
-        console.log('Taggle: Starting periodic Gmail sync');
+        console.log('Noma: Starting periodic Gmail sync');
         await this.syncAllGmailTags();
       } catch (error) {
-        console.error('Taggle: Periodic Gmail sync failed:', error);
+        console.error('Noma: Periodic Gmail sync failed:', error);
       }
     }, this.SYNC_INTERVAL);
 
-    console.log(`Taggle: Gmail periodic sync started (${this.SYNC_INTERVAL / 1000 / 60} minutes)`);
+    console.log(`Noma: Gmail periodic sync started (${this.SYNC_INTERVAL / 1000 / 60} minutes)`);
   }
 
   // Stop periodic sync
@@ -269,18 +269,18 @@ class GmailSync {
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = null;
-      console.log('Taggle: Gmail periodic sync stopped');
+      console.log('Noma: Gmail periodic sync stopped');
     }
   }
 
   // Manual sync trigger
   static async manualSync() {
     try {
-      console.log('Taggle: Manual Gmail sync triggered');
+      console.log('Noma: Manual Gmail sync triggered');
       await this.syncAllGmailTags();
       return true;
     } catch (error) {
-      console.error('Taggle: Manual Gmail sync failed:', error);
+      console.error('Noma: Manual Gmail sync failed:', error);
       throw error;
     }
   }
@@ -306,7 +306,7 @@ class GmailSync {
       return status;
 
     } catch (error) {
-      console.error('Taggle: Error getting Gmail sync status:', error);
+      console.error('Noma: Error getting Gmail sync status:', error);
       return {
         totalTags: 0,
         lastSyncTimes: {},

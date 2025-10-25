@@ -445,8 +445,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       // Check if this is a calendar tag and merge calendar contexts
       try {
         // Direct calendar context lookup (without CalendarSync dependency)
-        const { 'taggle-calendar-tags': calendarTags = {}, 'taggle-calendar-contexts': calendarContexts = {} } = 
-          await chrome.storage.local.get(['taggle-calendar-tags', 'taggle-calendar-contexts']);
+        const { 'noma-calendar-tags': calendarTags = {}, 'noma-calendar-contexts': calendarContexts = {} } = 
+          await chrome.storage.local.get(['noma-calendar-tags', 'noma-calendar-contexts']);
         
         console.log('Taggle: Checking calendar tags for tagId:', tagId);
         console.log('Taggle: Available calendar tags:', Object.keys(calendarTags));
@@ -481,8 +481,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       // Check if this is a Gmail tag and merge Gmail contexts
       try {
         // Direct Gmail context lookup (without GmailSync dependency)
-        const { 'taggle-gmail-tags': gmailTags = {}, 'taggle-gmail-contexts': gmailContexts = {} } = 
-          await chrome.storage.local.get(['taggle-gmail-tags', 'taggle-gmail-contexts']);
+        const { 'noma-gmail-tags': gmailTags = {}, 'noma-gmail-contexts': gmailContexts = {} } = 
+          await chrome.storage.local.get(['noma-gmail-tags', 'noma-gmail-contexts']);
         
         console.log('Taggle: Checking Gmail tags for tagId:', tagId);
         console.log('Taggle: Available Gmail tags:', Object.keys(gmailTags));
@@ -517,8 +517,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       // Check if this is a Notion tag and merge Notion contexts
       try {
         // Direct Notion context lookup (without NotionSync dependency)
-        const { 'taggle-notion-tags': notionTags = {}, 'taggle-notion-contexts': notionContexts = {} } = 
-          await chrome.storage.local.get(['taggle-notion-tags', 'taggle-notion-contexts']);
+        const { 'noma-notion-tags': notionTags = {}, 'noma-notion-contexts': notionContexts = {} } = 
+          await chrome.storage.local.get(['noma-notion-tags', 'noma-notion-contexts']);
         
         console.log('Taggle: Checking Notion tags for tagId:', tagId);
         console.log('Taggle: Available Notion tags:', Object.keys(notionTags));
@@ -553,8 +553,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       // Check if this is a Pinterest tag and merge Pinterest contexts
       try {
         // Direct Pinterest context lookup (without PinterestSync dependency)
-        const { 'taggle-pinterest-tags': pinterestTags = {}, 'taggle-pinterest-contexts': pinterestContexts = {} } = 
-          await chrome.storage.local.get(['taggle-pinterest-tags', 'taggle-pinterest-contexts']);
+        const { 'noma-pinterest-tags': pinterestTags = {}, 'noma-pinterest-contexts': pinterestContexts = {} } = 
+          await chrome.storage.local.get(['noma-pinterest-tags', 'noma-pinterest-contexts']);
         
         console.log('Taggle: Checking Pinterest tags for tagId:', tagId);
         console.log('Taggle: Available Pinterest tags:', Object.keys(pinterestTags));
@@ -647,7 +647,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       // Get calendar tags to check which tags are calendar tags
       let calendarTags = {};
       try {
-        const { 'taggle-calendar-tags': storedCalendarTags = {} } = await chrome.storage.local.get('taggle-calendar-tags');
+        const { 'noma-calendar-tags': storedCalendarTags = {} } = await chrome.storage.local.get('noma-calendar-tags');
         calendarTags = storedCalendarTags;
       } catch (error) {
         console.warn('Taggle: Could not load calendar tags:', error);
@@ -656,7 +656,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       // Get Gmail tags to check which tags are Gmail tags
       let gmailTags = {};
       try {
-        const { 'taggle-gmail-tags': storedGmailTags = {} } = await chrome.storage.local.get('taggle-gmail-tags');
+        const { 'noma-gmail-tags': storedGmailTags = {} } = await chrome.storage.local.get('noma-gmail-tags');
         gmailTags = storedGmailTags;
       } catch (error) {
         console.warn('Taggle: Could not load Gmail tags:', error);
@@ -665,7 +665,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       // Get Notion tags to check which tags are Notion tags
       let notionTags = {};
       try {
-        const { 'taggle-notion-tags': storedNotionTags = {} } = await chrome.storage.local.get('taggle-notion-tags');
+        const { 'noma-notion-tags': storedNotionTags = {} } = await chrome.storage.local.get('noma-notion-tags');
         notionTags = storedNotionTags;
       } catch (error) {
         console.warn('Taggle: Could not load Notion tags:', error);
@@ -674,11 +674,13 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       // Get Pinterest tags to check which tags are Pinterest tags
       let pinterestTags = {};
       try {
-        const { 'taggle-pinterest-tags': storedPinterestTags = {} } = await chrome.storage.local.get('taggle-pinterest-tags');
+        const { 'noma-pinterest-tags': storedPinterestTags = {} } = await chrome.storage.local.get('noma-pinterest-tags');
         pinterestTags = storedPinterestTags;
       } catch (error) {
         console.warn('Taggle: Could not load Pinterest tags:', error);
       }
+      
+      console.log('Taggle: Loaded integration tags - Calendar:', Object.keys(calendarTags), 'Gmail:', Object.keys(gmailTags), 'Notion:', Object.keys(notionTags), 'Pinterest:', Object.keys(pinterestTags));
       
       for (const tag of tags) {
         const counts = await getContextTypeCounts(tag.id);
@@ -1050,6 +1052,9 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     // Separate dynamic and regular tags for UI grouping
     const dynamicTags = tagsWithColors.filter(tag => tag.isCalendarTag || tag.isGmailTag || tag.isNotionTag || tag.isPinterestTag);
     const regularTags = tagsWithColors.filter(tag => !tag.isCalendarTag && !tag.isGmailTag && !tag.isNotionTag && !tag.isPinterestTag);
+    
+    console.log('Taggle: Dynamic tags:', dynamicTags.map(t => ({ name: t.name, isCalendar: t.isCalendarTag, isGmail: t.isGmailTag, isNotion: t.isNotionTag, isPinterest: t.isPinterestTag })));
+    console.log('Taggle: Regular tags:', regularTags.map(t => t.name));
 
     // Helper function to render a tag
     const renderTag = (tag, index, isDynamic = false) => {
