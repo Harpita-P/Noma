@@ -353,7 +353,9 @@ async function createSessionWithDownload(expected, { systemPrompt } = {}) {
 
 // Text-only prompting
 async function runPrompt(finalPromptText, abortSignal) {
-  const session = await createSessionWithDownload(EXPECTED, { /* optional systemPrompt */ });
+  const systemPrompt = "You are responding directly to a person in a conversation. Reply naturally as if you're talking to them directly. Do NOT use markdown formatting. Do NOT use phrases like 'I am an AI' or 'As an AI assistant'. Do NOT add explanations about your capabilities or limitations. Do NOT mention the source of the context or tag. Just respond naturally and conversationally as a helpful person would.";
+  
+  const session = await createSessionWithDownload(EXPECTED, { systemPrompt });
 
   // Non-streamed for simplicity; you can switch to promptStreaming if you want live tokens
   const result = await session.prompt(finalPromptText, { signal: abortSignal });
@@ -372,7 +374,9 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       expectedOutputs: [{ type: "text", languages: ["en"] }]
     };
 
-    const session = await createSessionWithDownload(mmExpected, { /* optional systemPrompt */ });
+    const systemPrompt = "You are responding directly to a person in a conversation. Reply naturally as if you're talking to them directly. Do NOT use markdown formatting. Do NOT use phrases like 'I am an AI' or 'As an AI assistant'. Do NOT add explanations about your capabilities or limitations. Do NOT mention the source of the context or tag. Just respond naturally and conversationally as a helpful person would.";
+    
+    const session = await createSessionWithDownload(mmExpected, { systemPrompt });
 
     // If you also want to include the big context text, add it as system or as a first append
     const contextText = contextData.textBlob?.trim() || "";
@@ -1267,7 +1271,6 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           height: 14px;
           margin-right: 3px;
           border-radius: 3px;
-          transform: rotate(-8deg);
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           border: 1px solid rgba(255,255,255,0.2);
         " title="Google Calendar Tag" />`);
@@ -1278,7 +1281,6 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           height: 14px;
           margin-right: 3px;
           border-radius: 3px;
-          transform: rotate(-8deg);
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           border: 1px solid rgba(255,255,255,0.2);
         " title="Gmail Tag" />`);
@@ -1289,7 +1291,6 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           height: 14px;
           margin-right: 3px;
           border-radius: 3px;
-          transform: rotate(-8deg);
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           border: 1px solid rgba(255,255,255,0.2);
         " title="Notion Tag" />`);
@@ -1300,7 +1301,6 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           height: 14px;
           margin-right: 3px;
           border-radius: 3px;
-          transform: rotate(-8deg);
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           border: 1px solid rgba(255,255,255,0.2);
         " title="Pinterest Tag" />`);
@@ -1410,8 +1410,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         ` : ''}
         <div style="display: flex; align-items: center; gap: 8px;">
           <img src="${chrome.runtime.getURL('noma-logo.png')}" style="
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             object-fit: contain;
             cursor: pointer;
           " title="Open Noma (Alt+T)" id="noma-logo-button" />
@@ -1480,7 +1480,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         padding: 8px 16px;
         background: ${getThemeStyles().footer.background};
         border-top: 1px solid ${getThemeStyles().footer.borderColor};
-        font-size: 10px; color: ${getThemeStyles().text.muted};
+        font-size: 8px; color: ${getThemeStyles().text.muted};
         text-align: center; backdrop-filter: blur(10px);
       ">
         ↑↓ Navigate • Enter Select • Esc Cancel • Ctrl+D Dark Mode
@@ -1710,7 +1710,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           color: #ccc;
           line-height: 1.4;
           text-align: center;
-        ">Connected to your Google Calendar<br>Automatically syncs data</div>
+        ">Connected to your Google Calendar</div>
       `;
     } else if (tag.isGmailTag) {
       infoContent = `
@@ -1736,7 +1736,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           color: #ccc;
           line-height: 1.4;
           text-align: center;
-        ">Connected to your Gmail<br>Automatically syncs data</div>
+        ">Connected to your Gmail</div>
       `;
     } else if (tag.isNotionTag) {
       infoContent = `
@@ -1762,7 +1762,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           color: #ccc;
           line-height: 1.4;
           text-align: center;
-        ">Connected to your Notion page<br>Automatically syncs data</div>
+        ">Connected to your Notion page</div>
       `;
     } else if (tag.isPinterestTag) {
       infoContent = `
@@ -1788,7 +1788,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           color: #ccc;
           line-height: 1.4;
           text-align: center;
-        ">Connected to your Pinterest board<br>Cached pins with images</div>
+        ">Connected to your Pinterest board</div>
       `;
     }
 
@@ -2314,47 +2314,58 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
   }
 
   function setText(el, text, isSpinner = false) {
-    if (!el) return;
+    if (!el) {
+      console.warn("Taggle: setText called with null element");
+      return;
+    }
+    
+    console.log("Taggle: setText called", {
+      tagName: el.tagName,
+      isContentEditable: el.isContentEditable,
+      textLength: text.length,
+      isSpinner: isSpinner
+    });
     
     if (el.isContentEditable) {
-      // Use document.execCommand for better compatibility with rich text editors
       el.focus();
       
-      // Select all content first
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      
-      // Use execCommand to replace content - this works better with rich editors
-      if (document.execCommand) {
-        document.execCommand('insertText', false, text);
-      } else {
-        // Fallback for browsers that don't support execCommand
-        const htmlText = text
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/\n/g, '<br>');
+      try {
+        // Select all content first
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        selection.removeAllRanges();
+        selection.addRange(range);
         
-        el.innerHTML = htmlText;
-      }
-      
-      // Trigger input events for rich text editors
-      el.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
-      
-      if (!isSpinner) {
-        // Position cursor at the end
+        // Use ClipboardEvent paste - this is what WhatsApp and other apps listen for
         setTimeout(() => {
-          const selection = window.getSelection();
-          const range = document.createRange();
-          range.selectNodeContents(el);
-          range.collapse(false); // Collapse to end
-          selection.removeAllRanges();
-          selection.addRange(range);
+          const clipboardData = new DataTransfer();
+          clipboardData.setData('text/plain', text);
+          
+          const pasteEvent = new ClipboardEvent('paste', {
+            bubbles: true,
+            cancelable: true,
+            clipboardData: clipboardData,
+          });
+          
+          el.dispatchEvent(pasteEvent);
+          
+          console.log("Taggle: Paste event dispatched successfully");
         }, 10);
+        
+        if (!isSpinner) {
+          // Position cursor at the end
+          setTimeout(() => {
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            range.collapse(false); // Collapse to end
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }, 50);
+        }
+      } catch (error) {
+        console.error("Taggle: Error setting text in contentEditable:", error);
       }
     } else if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
       // For input/textarea elements - direct value assignment
@@ -2366,8 +2377,11 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       }
       
       // Trigger comprehensive events
+      el.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: 'insertText', data: text }));
       el.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
       el.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+      
+      console.log("Taggle: Text set in input/textarea successfully");
     }
   }
 
@@ -2384,16 +2398,70 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     setTimeout(() => n.remove(), ms);
   }
 
-  // Simple spinner while we wait
+  // Floating spinner tooltip
   const SPIN = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"];
+  let floatingSpinner = null;
+  
+  function createFloatingSpinner(el) {
+    // Remove any existing spinner
+    if (floatingSpinner) {
+      floatingSpinner.remove();
+    }
+    
+    // Create floating spinner element
+    floatingSpinner = document.createElement('div');
+    floatingSpinner.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: 'Ranade', system-ui;
+      font-size: 18px;
+      z-index: 999999;
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    `;
+    document.body.appendChild(floatingSpinner);
+    
+    let i = 0;
+    const id = setInterval(() => {
+      if (floatingSpinner) {
+        floatingSpinner.textContent = SPIN[i = (i + 1) % SPIN.length];
+      }
+    }, 90);
+    
+    return () => {
+      clearInterval(id);
+      if (floatingSpinner) {
+        floatingSpinner.remove();
+        floatingSpinner = null;
+      }
+    };
+  }
+  
   function startSpinner(el) {
+    // For contentEditable elements (WhatsApp, etc), use floating spinner
+    if (el.isContentEditable) {
+      return createFloatingSpinner(el);
+    }
+    
+    // For regular inputs/textareas, use inline spinner
     let i = 0;
     const id = setInterval(() => setText(el, SPIN[i = (i + 1) % SPIN.length], true), 90);
     return () => clearInterval(id);
   }
 
-
   function startPartialSpinner(el, beforeText) {
+    // For contentEditable elements, use floating spinner
+    if (el.isContentEditable) {
+      return createFloatingSpinner(el);
+    }
+    
+    // For regular inputs/textareas, use inline spinner with prefix
     let i = 0;
     const id = setInterval(() => {
       const spinnerText = beforeText + SPIN[i = (i + 1) % SPIN.length];
@@ -2712,6 +2780,43 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       console.log("Taggle: No @tag syntax detected, using raw text");
     }
 
+    // For contentEditable elements (WhatsApp, etc), clear the text box immediately
+    if (el.isContentEditable) {
+      try {
+        el.focus();
+        
+        // Method 1: Direct clear
+        el.textContent = '';
+        el.innerText = '';
+        
+        // Method 2: Select all and paste empty
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        const clipboardData = new DataTransfer();
+        clipboardData.setData('text/plain', '');
+        
+        const pasteEvent = new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: clipboardData,
+        });
+        
+        el.dispatchEvent(pasteEvent);
+        
+        // Trigger input events
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        console.log("Taggle: Text box cleared for contentEditable");
+      } catch (error) {
+        console.error("Taggle: Error clearing contentEditable:", error);
+      }
+    }
+    
     // Start spinner - if we have a tag, only spin from tag onwards
     const stopSpin = tagInfo ? startPartialSpinner(el, beforeTagText) : startSpinner(el);
 
