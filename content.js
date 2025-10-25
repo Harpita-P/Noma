@@ -9,22 +9,66 @@
   window.taggleContentScriptLoaded = true;
 
   
-  // Inject CSS for blue cursor
+  // Inject CSS for light purple cursor and Noma logo glow animation
   const style = document.createElement('style');
   style.textContent = `
-    /* Blue cursor for input fields and contentEditable elements */
+    /* Light purple cursor for input fields and contentEditable elements */
     input, textarea, [contenteditable="true"], [contenteditable] {
-      caret-color: #007bff !important;
+      caret-color: #c084fc !important;
     }
     
-    /* Blue cursor for specific selectors that might override */
+    /* Light purple cursor for specific selectors that might override */
     input:focus, textarea:focus, [contenteditable="true"]:focus, [contenteditable]:focus {
-      caret-color: #007bff !important;
+      caret-color: #c084fc !important;
     }
     
     /* Ensure it works on common rich text editors */
     .ql-editor, .DraftEditor-editorContainer, .notranslate, [role="textbox"] {
-      caret-color: #007bff !important;
+      caret-color: #c084fc !important;
+    }
+
+    /* Purple flowing light animation for Noma logo */
+    @keyframes noma-flow {
+      0% {
+        box-shadow: 
+          -2px 0 8px 2px rgba(168, 85, 247, 0.4),
+          0 0 4px rgba(168, 85, 247, 0.15);
+      }
+      25% {
+        box-shadow: 
+          0 -2px 8px 2px rgba(168, 85, 247, 0.4),
+          0 0 4px rgba(168, 85, 247, 0.15);
+      }
+      50% {
+        box-shadow: 
+          2px 0 8px 2px rgba(168, 85, 247, 0.4),
+          0 0 4px rgba(168, 85, 247, 0.15);
+      }
+      75% {
+        box-shadow: 
+          0 2px 8px 2px rgba(168, 85, 247, 0.4),
+          0 0 4px rgba(168, 85, 247, 0.15);
+      }
+      100% {
+        box-shadow: 
+          -2px 0 8px 2px rgba(168, 85, 247, 0.4),
+          0 0 4px rgba(168, 85, 247, 0.15);
+      }
+    }
+
+    #noma-logo-button {
+      animation: noma-flow 2s linear infinite;
+      border-radius: 35%;
+      padding: 0;
+      transform: none !important;
+      transition: none !important;
+      overflow: hidden;
+      background: transparent !important;
+      border: none !important;
+    }
+    
+    #noma-logo-button:hover {
+      transform: none !important;
     }
   `;
   document.head.appendChild(style);
@@ -1181,10 +1225,31 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
 
     tagDropdown.innerHTML = `
       <div style="
+        padding: 10px 16px 8px 16px;
+        background: ${isDarkMode ? '#0a0a0a' : '#ffffff'};
+        border-bottom: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 12px 12px 0 0;
+      ">
+        <img src="${chrome.runtime.getURL('noma-logo.png')}" style="
+          width: 24px;
+          height: 24px;
+          object-fit: contain;
+          cursor: pointer;
+        " title="Open Noma (Alt+T)" id="noma-logo-button" />
+        <span style="
+          font-size: 13px;
+          font-weight: 600;
+          color: ${isDarkMode ? '#ffffff' : '#000000'};
+          opacity: 0.8;
+        ">Noma</span>
+      </div>
+      <div style="
         padding: 12px 16px; display: flex; flex-direction: column; gap: 12px;
         max-height: 280px; overflow-y: auto;
         background: ${isDarkMode ? '#0a0a0a' : '#ffffff'};
-        border-radius: 12px 12px 0 0;
       ">
         ${dynamicTags.length > 0 ? `
           <div style="display: flex; flex-wrap: wrap; gap: 8px;">
@@ -1216,6 +1281,15 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
 
     positionDropdown(element, tagDropdown);
     tagDropdown.style.display = 'block';
+
+    // Add click handler for Noma logo button
+    const logoButton = tagDropdown.querySelector('#noma-logo-button');
+    if (logoButton) {
+      logoButton.onclick = () => {
+        console.log('Noma: Logo button clicked in tag selector');
+        chrome.runtime.sendMessage({ action: 'openPopup' });
+      };
+    }
 
     // Add click handlers and hover effects
     tagDropdown.querySelectorAll('.taggle-tag-item').forEach((item, index) => {

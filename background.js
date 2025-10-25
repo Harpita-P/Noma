@@ -254,3 +254,12 @@ function blobToBase64(blob) {
     reader.readAsDataURL(blob);
   });
 }
+
+// Listen for messages from content script (e.g., floating logo click)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'openPopup') {
+    openNomaWindow();
+    sendResponse({ success: true });
+  }
+  return true; // Keep the message channel open for async response
+});
