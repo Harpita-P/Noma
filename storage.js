@@ -116,6 +116,31 @@ export async function getContexts(tagId) {
       console.warn("Taggle: Error fetching Notion contexts:", notionError);
     }
     
+    // Check if this is a Pinterest tag and merge Pinterest contexts
+    try {
+      if (typeof window !== 'undefined' && window.PinterestSync) {
+        const isPinterestTag = await window.PinterestSync.isPinterestTag(tagId);
+        if (isPinterestTag) {
+          const pinterestContexts = await window.PinterestSync.getPinterestContexts(tagId);
+          // Convert Pinterest pins to context format and merge
+          const formattedPinterestContexts = pinterestContexts.map(pin => ({
+            id: pin.id,
+            type: "pinterest",
+            text: window.PinterestSync.formatPinterestContentForAI([pin], false).text,
+            title: pin.title,
+            url: pin.link,
+            source: "pinterest",
+            createdAt: pin.createdAt,
+            imageBase64: pin.imageBase64, // Store base64 image for Gemini
+            pinterestData: pin // Store full pin data
+          }));
+          return [...formattedPinterestContexts, ...regularContexts];
+        }
+      }
+    } catch (pinterestError) {
+      console.warn("Taggle: Error fetching Pinterest contexts:", pinterestError);
+    }
+    
     return regularContexts;
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
@@ -190,6 +215,7 @@ export async function getContextTypeCounts(tagId) {
       calendar: 0,
       email: 0,
       notion: 0,
+      pinterest: 0,
       total: contexts.length
     };
 
@@ -202,6 +228,8 @@ export async function getContextTypeCounts(tagId) {
         counts.email++;
       } else if (ctx.type === "notion") {
         counts.notion++;
+      } else if (ctx.type === "pinterest") {
+        counts.pinterest++;
       } else if (ctx.type === "text") {
         if (ctx.source === "pdf-upload" || (ctx.title && ctx.title.startsWith("PDF:"))) {
           counts.pdf++;
@@ -215,7 +243,7 @@ export async function getContextTypeCounts(tagId) {
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
       console.log("Taggle: Extension context invalidated, returning empty counts");
-      return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, notion: 0, total: 0 };
+      return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, notion: 0, pinterest: 0, total: 0 };
     }
     throw error;
   }
@@ -253,18 +281,29 @@ export async function getAllTagsWithContextCounts() {
       console.warn('Taggle: Could not load Notion tags:', error);
     }
 
+    // Get Pinterest tags to check which tags are Pinterest tags
+    let pinterestTags = {};
+    try {
+      const { 'taggle-pinterest-tags': storedPinterestTags = {} } = await chrome.storage.local.get('taggle-pinterest-tags');
+      pinterestTags = storedPinterestTags;
+    } catch (error) {
+      console.warn('Taggle: Could not load Pinterest tags:', error);
+    }
+
     for (const tag of tags) {
       const counts = await getContextTypeCounts(tag.id);
       const isCalendarTag = !!calendarTags[tag.id];
       const isGmailTag = !!gmailTags[tag.id];
       const isNotionTag = !!notionTags[tag.id];
+      const isPinterestTag = !!pinterestTags[tag.id];
       
       tagsWithCounts.push({
         ...tag,
         contextCounts: counts,
         isCalendarTag: isCalendarTag,
         isGmailTag: isGmailTag,
-        isNotionTag: isNotionTag
+        isNotionTag: isNotionTag,
+        isPinterestTag: isPinterestTag
       });
     }
 

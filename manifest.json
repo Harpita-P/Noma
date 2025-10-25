@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Taggle",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Type a prompt in any textbox (Ctrl/Cmd+Space) and save webpage text to @tags via right-click.",
   "permissions": ["activeTab", "scripting", "contextMenus", "storage", "identity"],
   "oauth2": {
@@ -37,7 +37,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["lib/pdf.worker.min.js","lib/pdf.min.js","lib/pdf-loader.js","calendar-service-v3.js","calendar-sync.js","gc-logo.png","gmail-service.js","gmail-sync.js","email-logo.png","folder-watcher.js","rag-system.js","notion-service.js","notion-sync.js","not-logo.png"],
+      "resources": ["lib/pdf.worker.min.js","lib/pdf.min.js","lib/pdf-loader.js","calendar-service-v3.js","calendar-sync.js","gc-logo.png","gmail-service.js","gmail-sync.js","email-logo.png","folder-watcher.js","rag-system.js","notion-service.js","notion-sync.js","not-logo.png","pinterest-service.js","pinterest-sync.js","pin-logo.png"],
       "matches": ["<all_urls>"]
     }
   ]
