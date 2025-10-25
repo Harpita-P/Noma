@@ -353,7 +353,7 @@ async function createSessionWithDownload(expected, { systemPrompt } = {}) {
 
 // Text-only prompting
 async function runPrompt(finalPromptText, abortSignal) {
-  const systemPrompt = "You are responding directly to a person in a conversation. Reply naturally as if you're talking to them directly. Do NOT use markdown formatting. Do NOT use phrases like 'I am an AI' or 'As an AI assistant'. Do NOT add explanations about your capabilities or limitations. Do NOT mention the source of the context or tag. Just respond naturally and conversationally as a helpful person would.";
+  const systemPrompt = "You are responding directly to a person in a conversation. Reply naturally as if you're talking to them directly. Do NOT use markdown formatting. Do NOT use phrases like 'I am an AI' or 'As an AI assistant'. Do NOT add explanations about your capabilities or limitations. Do NOT mention the source of the context or tag. IMPORTANT: If the user requests code, return ONLY the runnable code with no explanations, no markdown code blocks, no additional text - just pure executable code. Just respond naturally and conversationally as a helpful person would.";
   
   const session = await createSessionWithDownload(EXPECTED, { systemPrompt });
 
@@ -374,7 +374,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       expectedOutputs: [{ type: "text", languages: ["en"] }]
     };
 
-    const systemPrompt = "You are responding directly to a person in a conversation. Reply naturally as if you're talking to them directly. Do NOT use markdown formatting. Do NOT use phrases like 'I am an AI' or 'As an AI assistant'. Do NOT add explanations about your capabilities or limitations. Do NOT mention the source of the context or tag. Just respond naturally and conversationally as a helpful person would.";
+    const systemPrompt = "You are responding directly to a person in a conversation. Reply naturally as if you're talking to them directly. Do NOT use markdown formatting. Do NOT use phrases like 'I am an AI' or 'As an AI assistant'. Do NOT add explanations about your capabilities or limitations. Do NOT mention the source of the context or tag. IMPORTANT: If the user requests code, return ONLY the runnable code with no explanations, no markdown code blocks, no additional text - just pure executable code. Just respond naturally and conversationally as a helpful person would.";
     
     const session = await createSessionWithDownload(mmExpected, { systemPrompt });
 
@@ -2122,6 +2122,38 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       isContentEditable: currentElement.isContentEditable
     });
     
+    // Check if this is a CodeMirror editor (Google Colab, Jupyter, etc.)
+    let codeMirrorInstance = null;
+    if (currentElement.CodeMirror) {
+      codeMirrorInstance = currentElement.CodeMirror;
+    } else if (currentElement.closest && currentElement.closest('.CodeMirror')) {
+      const cmElement = currentElement.closest('.CodeMirror');
+      codeMirrorInstance = cmElement.CodeMirror;
+    }
+    
+    // Also check if textarea is inside a CodeMirror wrapper
+    if (!codeMirrorInstance && currentElement.tagName === 'TEXTAREA') {
+      const parent = currentElement.parentElement;
+      if (parent && parent.classList.contains('CodeMirror')) {
+        codeMirrorInstance = parent.CodeMirror;
+      } else if (parent && parent.parentElement && parent.parentElement.classList.contains('CodeMirror')) {
+        codeMirrorInstance = parent.parentElement.CodeMirror;
+      }
+    }
+    
+    if (codeMirrorInstance) {
+      console.log('Taggle: CodeMirror detected, using CodeMirror API');
+      try {
+        const cursor = codeMirrorInstance.getCursor();
+        codeMirrorInstance.replaceRange(tagText, cursor);
+        codeMirrorInstance.focus();
+        hideTagSelector();
+        return;
+      } catch (e) {
+        console.error('Taggle: CodeMirror insertion failed:', e);
+      }
+    }
+    
     // For contentEditable elements, use insertText at current cursor position
     if (currentElement.isContentEditable) {
       currentElement.focus();
@@ -2190,21 +2222,50 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     } else {
       // For regular input/textarea elements
       const text = getText(currentElement);
-      const caretPos = storedCaretPosition || currentElement.selectionStart || 0;
+      const caretPos = storedCaretPosition !== null ? storedCaretPosition : (currentElement.selectionStart || 0);
+      
+      console.log('Taggle: Textarea insertion:', {
+        originalText: text,
+        caretPos: caretPos,
+        storedCaretPosition: storedCaretPosition,
+        selectionStart: currentElement.selectionStart
+      });
       
       const beforeCaret = text.substring(0, caretPos);
       const afterCaret = text.substring(caretPos);
       const newText = beforeCaret + tagText + afterCaret;
       
-      currentElement.value = newText;
+      console.log('Taggle: New text:', newText);
       
-      // Position cursor after the tag
-      const newCaretPos = caretPos + tagText.length;
-      currentElement.setSelectionRange(newCaretPos, newCaretPos);
+      currentElement.focus();
       
-      // Trigger events
-      currentElement.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
-      currentElement.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+      // Try execCommand first (works for controlled inputs like Colab)
+      let inserted = false;
+      try {
+        currentElement.setSelectionRange(caretPos, caretPos);
+        inserted = document.execCommand('insertText', false, tagText);
+        console.log('Taggle: execCommand result:', inserted);
+      } catch (e) {
+        console.log('Taggle: execCommand not available:', e);
+      }
+      
+      // If execCommand didn't work, fall back to direct value manipulation
+      if (!inserted) {
+        currentElement.value = newText;
+        const newCaretPos = caretPos + tagText.length;
+        currentElement.setSelectionRange(newCaretPos, newCaretPos);
+        
+        // Dispatch events for frameworks that listen
+        currentElement.dispatchEvent(new InputEvent("input", { 
+          bubbles: true, 
+          cancelable: true,
+          inputType: 'insertText',
+          data: tagText
+        }));
+        currentElement.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+      }
+      
+      console.log('Taggle: Textarea updated');
     }
     
     hideTagSelector();
@@ -2600,6 +2661,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       if (el) {
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation(); // Stop other handlers from running
         console.log("Taggle: Showing tag selector");
         showTagSelector(el);
         return;
