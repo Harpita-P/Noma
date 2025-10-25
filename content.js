@@ -12,19 +12,19 @@
     /* Import Ranade font from Fontshare */
     @import url('https://api.fontshare.com/v2/css?f[]=ranade@400&display=swap');
     
-    /* Light purple cursor for input fields and contentEditable elements */
+    /* Black cursor for input fields and contentEditable elements */
     input, textarea, [contenteditable="true"], [contenteditable] {
-      caret-color: #c084fc !important;
+      caret-color: #000000 !important;
     }
     
-    /* Light purple cursor for specific selectors that might override */
+    /* Black cursor for specific selectors that might override */
     input:focus, textarea:focus, [contenteditable="true"]:focus, [contenteditable]:focus {
-      caret-color: #c084fc !important;
+      caret-color: #000000 !important;
     }
     
     /* Ensure it works on common rich text editors */
     .ql-editor, .DraftEditor-editorContainer, .notranslate, [role="textbox"] {
-      caret-color: #c084fc !important;
+      caret-color: #000000 !important;
     }
 
     #noma-logo-button {
@@ -71,13 +71,18 @@
       transition: transform 0.2s ease;
     }
     
+    /* Make tooltip appear instantly */
+    #noma-floating-button[title]:hover::after {
+      transition-delay: 0s !important;
+    }
+    
     #noma-floating-button:hover {
       transform: scale(1.1);
     }
     
     #noma-floating-button img {
-      width: 20px;
-      height: 20px;
+      width: 26px;
+      height: 26px;
       object-fit: contain;
       animation: noma-spin 2s linear infinite;
     }
@@ -335,8 +340,8 @@ async function createSessionWithDownload(expected, { systemPrompt } = {}) {
     monitor(m) {
       m.addEventListener('downloadprogress', (e) => {
         const pct = Math.round((e.loaded || 0) * 100);
-        progressToast(`Downloading on-device model… ${pct}%`);
-        if (pct >= 100) setTimeout(() => progressToast("Model ready!"), 400);
+        console.log(`Downloading on-device model… ${pct}%`);
+        if (pct >= 100) console.log("Model ready!");
       });
     }
   };
@@ -1030,6 +1035,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
   function createFloatingButton() {
     const button = document.createElement('div');
     button.id = 'noma-floating-button';
+    button.title = 'Send to Noma';
     button.innerHTML = `<img src="${chrome.runtime.getURL('noma-logo.png')}" alt="Noma" />`;
     button.style.display = 'none';
     document.body.appendChild(button);
@@ -1090,8 +1096,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       // Clear selection
       window.getSelection().removeAllRanges();
       
-      // Show confirmation toast
-      toast('Live Context captured! Use Ctrl+Q to select a tag.');
+      // Show confirmation message
+      toast('Shared with Noma!');
       
       console.log('Noma: Live Context captured:', liveContext);
     }
@@ -1193,7 +1199,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     
     if (!tagsWithCounts.length) {
       console.log("Taggle: No tags found");
-      toast("No tags found. Create some in Options first.");
+      toast("No tags found. Create some first.");
       return;
     }
 
@@ -1598,9 +1604,6 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
 
     // Initial attachment of event listeners
     attachTagEventListeners();
-
-    // Show toast with instructions
-    toast("Tag selector active. Use ↑↓ arrows and Enter to select.");
   }
 
   function updateTagSelection() {
@@ -2178,7 +2181,6 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     }
     
     hideTagSelector();
-    toast(`Tag @${tagName} inserted!`);
   }
 
   function getCaretPosition(element) {
@@ -2347,7 +2349,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     const n = document.createElement("div");
     n.textContent = msg;
     Object.assign(n.style, {
-      position: "fixed", top: "10px", left: "50%", transform: "translateX(-50%)",
+      position: "fixed", top: "28%", left: "50%", transform: "translate(-50%, -50%)",
       background: "rgba(0,0,0,.85)", color: "#fff", padding: "8px 10px",
       borderRadius: "8px", zIndex: 999999, fontFamily: "'Ranade', system-ui", fontSize: "12px"
     });
@@ -2515,7 +2517,6 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     if (e.key === 'd' && (e.ctrlKey || e.metaKey) && tagSelectorActive) {
       e.preventDefault();
       toggleTheme();
-      toast(`Taggle: ${isDarkMode ? 'Dark' : 'Light'} mode enabled`);
       return;
     }
 
@@ -2600,7 +2601,6 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       beforeTagText = tagInfo.beforeTag;
       
       if (!tag) {
-        toast(`Tag "@${tagInfo.tagName}" not found. Create it in Options.`);
         console.log("Taggle: Tag not found:", tagInfo.tagName);
         // Use the tag portion as fallback
         finalPromptText = tagInfo.userPrompt;
@@ -2728,8 +2728,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     } catch (err) {
       stopSpin();
       setText(el, original);
-      if (err?.name === "AbortError") toast("Taggle: cancelled");
-      else { console.error("[Taggle] Prompt failed:", err); toast("Taggle: Gemini Nano unavailable or failed"); }
+      if (err?.name === "AbortError") console.log("Taggle: cancelled");
+      else { console.error("[Taggle] Prompt failed:", err); }
     } finally {
       window.removeEventListener("keydown", onEsc);
     }
