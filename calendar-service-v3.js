@@ -13,11 +13,11 @@ class CalendarService {
       this.CLIENT_ID = clientId;
       this.isInitialized = true;
       
-      console.log('Taggle: Calendar service initialized');
+      console.log('Noma: Calendar service initialized');
       return true;
 
     } catch (error) {
-      console.error('Taggle: Failed to initialize calendar service:', error);
+      console.error('Noma: Failed to initialize calendar service:', error);
       return false;
     }
   }
@@ -39,12 +39,12 @@ class CalendarService {
         try {
           await chrome.identity.removeCachedAuthToken({ token: this.accessToken });
         } catch (clearError) {
-          console.warn('Taggle: Could not clear cached token:', clearError);
+          console.warn('Noma: Could not clear cached token:', clearError);
         }
       }
 
       // Use Chrome Identity API only (same as Gmail service)
-      console.log('Taggle: Attempting Chrome Identity API sign-in for Calendar...');
+      console.log('Noma: Attempting Chrome Identity API sign-in for Calendar...');
       const token = await chrome.identity.getAuthToken({
         interactive: true,
         scopes: this.SCOPES
@@ -52,18 +52,18 @@ class CalendarService {
 
       if (token) {
         this.accessToken = typeof token === 'object' && token.token ? token.token : token;
-        console.log('Taggle: Chrome Identity API Calendar sign-in successful');
+        console.log('Noma: Chrome Identity API Calendar sign-in successful');
         
         // Test the token
         await this.apiRequest('calendars/primary');
-        console.log('Taggle: Calendar token validation successful');
+        console.log('Noma: Calendar token validation successful');
         return true;
       }
 
       throw new Error('Failed to get access token from Chrome Identity API');
 
     } catch (error) {
-      console.error('Taggle: Calendar sign-in failed:', error);
+      console.error('Noma: Calendar sign-in failed:', error);
       
       // Provide helpful error messages
       if (error.message && error.message.includes('OAuth2 not granted or revoked')) {
@@ -91,14 +91,14 @@ class CalendarService {
             method: 'POST'
           });
         } catch (revokeError) {
-          console.warn('Taggle: Could not revoke token:', revokeError);
+          console.warn('Noma: Could not revoke token:', revokeError);
         }
       }
       
       this.accessToken = null;
-      console.log('Taggle: Google Calendar sign-out successful');
+      console.log('Noma: Google Calendar sign-out successful');
     } catch (error) {
-      console.error('Taggle: Google Calendar sign-out failed:', error);
+      console.error('Noma: Google Calendar sign-out failed:', error);
     }
   }
 
@@ -165,16 +165,16 @@ class CalendarService {
         return hasAttendees || hasMeetingLink || hasLocation || (isBusy && hasTitle);
       });
       
-      console.log(`Taggle: Filtered ${events.length} total events to ${meetings.length} meetings`);
+      console.log(`Noma: Filtered ${events.length} total events to ${meetings.length} meetings`);
       if (events.length > 0 && meetings.length === 0) {
-        console.log('Taggle: Sample event for debugging:', events[0]);
+        console.log('Noma: Sample event for debugging:', events[0]);
       }
 
-      console.log(`Taggle: Retrieved ${meetings.length} meetings from ${events.length} total events`);
+      console.log(`Noma: Retrieved ${meetings.length} meetings from ${events.length} total events`);
       return meetings;
 
     } catch (error) {
-      console.error('Taggle: Failed to fetch calendar events:', error);
+      console.error('Noma: Failed to fetch calendar events:', error);
       throw error;
     }
   }
@@ -210,16 +210,16 @@ class CalendarService {
         return hasAttendees || hasMeetingLink || hasLocation || (isBusy && hasTitle);
       });
       
-      console.log(`Taggle: Today - Filtered ${events.length} total events to ${meetings.length} meetings`);
+      console.log(`Noma: Today - Filtered ${events.length} total events to ${meetings.length} meetings`);
       if (events.length > 0 && meetings.length === 0) {
-        console.log('Taggle: Sample today event for debugging:', events[0]);
+        console.log('Noma: Sample today event for debugging:', events[0]);
       }
 
-      console.log(`Taggle: Retrieved ${meetings.length} meetings for today`);
+      console.log(`Noma: Retrieved ${meetings.length} meetings for today`);
       return meetings;
 
     } catch (error) {
-      console.error('Taggle: Failed to fetch today\'s events:', error);
+      console.error('Noma: Failed to fetch today\'s events:', error);
       throw error;
     }
   }
@@ -294,7 +294,7 @@ class CalendarService {
         };
       } else {
         // Fallback: return basic info if userinfo fails
-        console.warn('Taggle: Could not get detailed user info, using fallback');
+        console.warn('Noma: Could not get detailed user info, using fallback');
         return {
           email: 'Signed in user',
           name: 'Calendar User',
@@ -302,7 +302,7 @@ class CalendarService {
         };
       }
     } catch (error) {
-      console.warn('Taggle: Failed to get user info, using fallback:', error);
+      console.warn('Noma: Failed to get user info, using fallback:', error);
       // Return fallback info so the UI still works
       return {
         email: 'Signed in user',

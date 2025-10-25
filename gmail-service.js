@@ -13,11 +13,11 @@ class GmailService {
       this.CLIENT_ID = clientId;
       this.isInitialized = true;
       
-      console.log('Taggle: Gmail service initialized');
+      console.log('Noma: Gmail service initialized');
       return true;
 
     } catch (error) {
-      console.error('Taggle: Failed to initialize Gmail service:', error);
+      console.error('Noma: Failed to initialize Gmail service:', error);
       return false;
     }
   }
@@ -39,18 +39,18 @@ class GmailService {
         try {
           await chrome.identity.removeCachedAuthToken({ token: this.accessToken });
         } catch (clearError) {
-          console.warn('Taggle: Could not clear cached token:', clearError);
+          console.warn('Noma: Could not clear cached token:', clearError);
         }
       }
 
       // Use Chrome Identity API only (same as Calendar service)
-      console.log('Taggle: Attempting Chrome Identity API sign-in for Gmail...');
+      console.log('Noma: Attempting Chrome Identity API sign-in for Gmail...');
       
       // Force a fresh token by clearing cache first
       try {
         await chrome.identity.clearAllCachedAuthTokens();
       } catch (clearError) {
-        console.warn('Taggle: Could not clear all cached tokens:', clearError);
+        console.warn('Noma: Could not clear all cached tokens:', clearError);
       }
       
       const token = await chrome.identity.getAuthToken({
@@ -60,15 +60,15 @@ class GmailService {
 
       if (token) {
         this.accessToken = typeof token === 'object' && token.token ? token.token : token;
-        console.log('Taggle: Chrome Identity API Gmail sign-in successful');
+        console.log('Noma: Chrome Identity API Gmail sign-in successful');
         
         // Test the token with a simpler endpoint
         try {
           await this.apiRequest('users/me/profile');
-          console.log('Taggle: Gmail token validation successful');
+          console.log('Noma: Gmail token validation successful');
           return true;
         } catch (validationError) {
-          console.warn('Taggle: Token validation failed, but continuing anyway:', validationError.message);
+          console.warn('Noma: Token validation failed, but continuing anyway:', validationError.message);
           // Don't throw error here - the token might still work for other operations
           return true;
         }
@@ -77,7 +77,7 @@ class GmailService {
       throw new Error('Failed to get access token from Chrome Identity API');
 
     } catch (error) {
-      console.error('Taggle: Gmail sign-in failed:', error);
+      console.error('Noma: Gmail sign-in failed:', error);
       
       // Provide helpful error messages
       if (error.message && error.message.includes('redirect_uri_mismatch')) {
@@ -107,14 +107,14 @@ class GmailService {
             method: 'POST'
           });
         } catch (revokeError) {
-          console.warn('Taggle: Could not revoke Gmail token:', revokeError);
+          console.warn('Noma: Could not revoke Gmail token:', revokeError);
         }
       }
       
       this.accessToken = null;
-      console.log('Taggle: Gmail sign-out successful');
+      console.log('Noma: Gmail sign-out successful');
     } catch (error) {
-      console.error('Taggle: Gmail sign-out failed:', error);
+      console.error('Noma: Gmail sign-out failed:', error);
     }
   }
 
@@ -153,7 +153,7 @@ class GmailService {
   // Get recent emails
   static async getRecentEmails(maxResults = 50) {
     try {
-      console.log(`Taggle: Fetching ${maxResults} recent emails`);
+      console.log(`Noma: Fetching ${maxResults} recent emails`);
       
       // Get list of message IDs
       const response = await this.apiRequest('users/me/messages', {
@@ -162,7 +162,7 @@ class GmailService {
       });
 
       const messages = response.messages || [];
-      console.log(`Taggle: Found ${messages.length} recent emails`);
+      console.log(`Noma: Found ${messages.length} recent emails`);
 
       if (messages.length === 0) {
         return [];
@@ -181,15 +181,15 @@ class GmailService {
             emails.push(formattedEmail);
           }
         } catch (emailError) {
-          console.warn('Taggle: Failed to fetch email details:', emailError);
+          console.warn('Noma: Failed to fetch email details:', emailError);
         }
       }
 
-      console.log(`Taggle: Successfully formatted ${emails.length} emails`);
+      console.log(`Noma: Successfully formatted ${emails.length} emails`);
       return emails;
 
     } catch (error) {
-      console.error('Taggle: Failed to fetch recent emails:', error);
+      console.error('Noma: Failed to fetch recent emails:', error);
       throw error;
     }
   }
@@ -232,7 +232,7 @@ class GmailService {
           bodyText = bodyText.replace(/\r?\n/g, ' ').trim().substring(0, 500);
         }
       } catch (bodyError) {
-        console.warn('Taggle: Could not extract email body:', bodyError);
+        console.warn('Noma: Could not extract email body:', bodyError);
       }
 
       return {
@@ -255,7 +255,7 @@ class GmailService {
         lastSynced: new Date().toISOString()
       };
     } catch (error) {
-      console.error('Taggle: Failed to format email:', error);
+      console.error('Noma: Failed to format email:', error);
       return null;
     }
   }
@@ -283,7 +283,7 @@ class GmailService {
         };
       } else {
         // Fallback: return basic info if userinfo fails
-        console.warn('Taggle: Could not get detailed user info, using fallback');
+        console.warn('Noma: Could not get detailed user info, using fallback');
         return {
           email: 'Signed in user',
           name: 'Gmail User',
@@ -291,7 +291,7 @@ class GmailService {
         };
       }
     } catch (error) {
-      console.warn('Taggle: Failed to get user info, using fallback:', error);
+      console.warn('Noma: Failed to get user info, using fallback:', error);
       // Return fallback info so the UI still works
       return {
         email: 'Signed in user',

@@ -1,4 +1,4 @@
-// PDF text extraction for Taggle using local PDF.js
+// PDF text extraction for Noma using local PDF.js
 // Manifest V3 compatible implementation
 
 class PDFExtractor {
@@ -18,7 +18,7 @@ class PDFExtractor {
       // Set worker source to local file
       if (window.pdfjsLib) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('lib/pdf.worker.min.js');
-        console.log("Taggle: PDF.js worker configured:", window.pdfjsLib.GlobalWorkerOptions.workerSrc);
+        console.log("Noma: PDF.js worker configured:", window.pdfjsLib.GlobalWorkerOptions.workerSrc);
       }
       
       // Verify initialization
@@ -27,10 +27,10 @@ class PDFExtractor {
       }
       
       this.isInitialized = true;
-      console.log("Taggle: PDF.js initialized successfully");
+      console.log("Noma: PDF.js initialized successfully");
       
     } catch (error) {
-      console.error("Taggle: Failed to initialize PDF.js:", error);
+      console.error("Noma: Failed to initialize PDF.js:", error);
       throw error;
     }
   }
@@ -50,12 +50,12 @@ class PDFExtractor {
       script.src = chrome.runtime.getURL('lib/pdf-loader.js');
       
       const handleLoad = () => {
-        console.log("Taggle: PDF.js module loaded");
+        console.log("Noma: PDF.js module loaded");
         resolve();
       };
       
       const handleError = (error) => {
-        console.error("Taggle: Failed to load PDF.js module:", error);
+        console.error("Noma: Failed to load PDF.js module:", error);
         reject(new Error('Failed to load PDF.js module'));
       };
       
@@ -80,7 +80,7 @@ class PDFExtractor {
     try {
       await this.initialize();
       
-      console.log("Taggle: Starting PDF text extraction for:", file.name);
+      console.log("Noma: Starting PDF text extraction for:", file.name);
       
       // Convert file to ArrayBuffer
       const arrayBuffer = await file.arrayBuffer();
@@ -92,7 +92,7 @@ class PDFExtractor {
       });
       
       const pdf = await loadingTask.promise;
-      console.log("Taggle: PDF loaded, pages:", pdf.numPages);
+      console.log("Noma: PDF loaded, pages:", pdf.numPages);
       
       let fullText = '';
       
@@ -112,10 +112,10 @@ class PDFExtractor {
             fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
           }
           
-          console.log(`Taggle: Extracted ${pageText.length} characters from page ${pageNum}`);
+          console.log(`Noma: Extracted ${pageText.length} characters from page ${pageNum}`);
           
         } catch (pageError) {
-          console.warn(`Taggle: Failed to extract text from page ${pageNum}:`, pageError);
+          console.warn(`Noma: Failed to extract text from page ${pageNum}:`, pageError);
           fullText += `\n--- Page ${pageNum} ---\n[Error extracting page content]\n`;
         }
       }
@@ -126,7 +126,7 @@ class PDFExtractor {
         .replace(/\n\s*\n/g, '\n') // Remove empty lines
         .trim();
       
-      console.log(`Taggle: PDF extraction complete. Total characters: ${fullText.length}`);
+      console.log(`Noma: PDF extraction complete. Total characters: ${fullText.length}`);
       
       if (!fullText.trim()) {
         throw new Error('No text content found in PDF. This might be a scanned/image-based PDF.');
@@ -135,7 +135,7 @@ class PDFExtractor {
       return fullText;
       
     } catch (error) {
-      console.error("Taggle: PDF extraction failed:", error);
+      console.error("Noma: PDF extraction failed:", error);
       throw new Error(`Failed to extract text from PDF: ${error.message}`);
     }
   }

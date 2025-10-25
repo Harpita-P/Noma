@@ -1,4 +1,4 @@
-# Notion Integration for Taggle
+# Notion Integration for Noma
 
 ## Overview
 Complete Notion integration that allows users to sync Notion page content and use it as context via @tags, following the same pattern as Calendar and Gmail integrations.
@@ -60,7 +60,7 @@ Complete Notion integration that allows users to sync Notion page content and us
 ### 1. Create Notion Integration
 1. Go to https://www.notion.so/my-integrations
 2. Click "+ New integration"
-3. Give it a name (e.g., "Taggle")
+3. Give it a name (e.g., "Noma")
 4. Select the workspace
 5. Copy the **Integration Token** (starts with `secret_`)
 
@@ -70,8 +70,8 @@ Complete Notion integration that allows users to sync Notion page content and us
 3. Invite your integration by name
 4. The integration now has access to that page
 
-### 3. Connect in Taggle
-1. Open Taggle popup (Alt+T)
+### 3. Connect in Noma
+1. Open Noma popup (Alt+T)
 2. Scroll to Integrations section
 3. Click **Setup** on Notion integration
 4. Enter:
@@ -85,14 +85,14 @@ Type `@myNotion` in any text field and press Ctrl/Cmd+Space to include the Notio
 
 ## Storage Schema
 
-### taggle-notion-settings
+### noma-notion-settings
 ```javascript
 {
   token: "secret_..." // Integration token
 }
 ```
 
-### taggle-notion-tags
+### noma-notion-tags
 ```javascript
 {
   [tagId]: {
@@ -105,7 +105,7 @@ Type `@myNotion` in any text field and press Ctrl/Cmd+Space to include the Notio
 }
 ```
 
-### taggle-notion-contexts
+### noma-notion-contexts
 ```javascript
 {
   [tagId]: [{

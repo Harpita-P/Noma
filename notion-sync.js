@@ -3,9 +3,9 @@
 
 class NotionSync {
   constructor() {
-    this.NOTION_TAGS_KEY = 'taggle-notion-tags';
-    this.NOTION_CONTEXTS_KEY = 'taggle-notion-contexts';
-    this.NOTION_SETTINGS_KEY = 'taggle-notion-settings';
+    this.NOTION_TAGS_KEY = 'noma-notion-tags';
+    this.NOTION_CONTEXTS_KEY = 'noma-notion-contexts';
+    this.NOTION_SETTINGS_KEY = 'noma-notion-settings';
     this.SYNC_INTERVAL = 15 * 60 * 1000; // 15 minutes
     this.syncIntervalId = null;
     this.notionService = null;
@@ -244,11 +244,11 @@ ${context.content}
     }
 
     this.syncIntervalId = setInterval(async () => {
-      console.log('Taggle: Running automatic Notion sync...');
+      console.log('Noma: Running automatic Notion sync...');
       await this.syncAllNotionTags();
     }, this.SYNC_INTERVAL);
 
-    console.log('Taggle: Notion auto-sync started (15 min interval)');
+    console.log('Noma: Notion auto-sync started (15 min interval)');
   }
 
   /**
@@ -258,7 +258,7 @@ ${context.content}
     if (this.syncIntervalId) {
       clearInterval(this.syncIntervalId);
       this.syncIntervalId = null;
-      console.log('Taggle: Notion auto-sync stopped');
+      console.log('Noma: Notion auto-sync stopped');
     }
   }
 }

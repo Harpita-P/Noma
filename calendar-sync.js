@@ -2,9 +2,9 @@
 // Handles calendar data synchronization and storage
 
 class CalendarSync {
-  static CALENDAR_TAGS_KEY = "taggle-calendar-tags"; // map: tagId -> calendar config
-  static CALENDAR_CONTEXTS_KEY = "taggle-calendar-contexts"; // map: tagId -> array of calendar events
-  static CALENDAR_SETTINGS_KEY = "taggle-calendar-settings"; // API keys and settings
+  static CALENDAR_TAGS_KEY = "noma-calendar-tags"; // map: tagId -> calendar config
+  static CALENDAR_CONTEXTS_KEY = "noma-calendar-contexts"; // map: tagId -> array of calendar events
+  static CALENDAR_SETTINGS_KEY = "noma-calendar-settings"; // API keys and settings
   static SYNC_INTERVAL = 15 * 60 * 1000; // 15 minutes (reduced API calls)
   
   static syncTimer = null;
@@ -21,14 +21,14 @@ class CalendarSync {
         // Initialize calendar service if we have credentials
         const initialized = await CalendarService.initialize(settings.clientId, settings.apiKey);
         if (initialized) {
-          console.log('Taggle: Calendar sync initialized');
+          console.log('Noma: Calendar sync initialized');
           this.startPeriodicSync();
         }
       }
 
       this.isInitialized = true;
     } catch (error) {
-      console.error('Taggle: Failed to initialize calendar sync:', error);
+      console.error('Noma: Failed to initialize calendar sync:', error);
     }
   }
 
@@ -39,7 +39,7 @@ class CalendarSync {
         await chrome.storage.local.get(this.CALENDAR_SETTINGS_KEY);
       return settings;
     } catch (error) {
-      console.error('Taggle: Error getting calendar settings:', error);
+      console.error('Noma: Error getting calendar settings:', error);
       return {};
     }
   }
@@ -48,9 +48,9 @@ class CalendarSync {
   static async saveCalendarSettings(settings) {
     try {
       await chrome.storage.local.set({ [this.CALENDAR_SETTINGS_KEY]: settings });
-      console.log('Taggle: Calendar settings saved');
+      console.log('Noma: Calendar settings saved');
     } catch (error) {
-      console.error('Taggle: Error saving calendar settings:', error);
+      console.error('Noma: Error saving calendar settings:', error);
       throw error;
     }
   }
@@ -85,11 +85,11 @@ class CalendarSync {
       // Do initial sync
       await this.syncCalendarTag(tag.id);
 
-      console.log(`Taggle: Created calendar tag @${tag.name}`);
+      console.log(`Noma: Created calendar tag @${tag.name}`);
       return tag;
 
     } catch (error) {
-      console.error('Taggle: Error creating calendar tag:', error);
+      console.error('Noma: Error creating calendar tag:', error);
       throw error;
     }
   }
@@ -101,7 +101,7 @@ class CalendarSync {
         await chrome.storage.local.get(this.CALENDAR_TAGS_KEY);
       return calendarTags;
     } catch (error) {
-      console.error('Taggle: Error getting calendar tags:', error);
+      console.error('Noma: Error getting calendar tags:', error);
       return {};
     }
   }
@@ -119,16 +119,16 @@ class CalendarSync {
       const calendarConfig = calendarTags[tagId];
       
       if (!calendarConfig) {
-        console.warn(`Taggle: No calendar config found for tag ${tagId}`);
+        console.warn(`Noma: No calendar config found for tag ${tagId}`);
         return;
       }
 
       if (!CalendarService.isSignedIn()) {
-        console.warn('Taggle: Not signed in to Google Calendar, skipping sync');
+        console.warn('Noma: Not signed in to Google Calendar, skipping sync');
         return;
       }
 
-      console.log(`Taggle: Syncing calendar tag @${calendarConfig.tagName}`);
+      console.log(`Noma: Syncing calendar tag @${calendarConfig.tagName}`);
 
       let events = [];
       
@@ -157,10 +157,10 @@ class CalendarSync {
       calendarTags[tagId].lastSynced = new Date().toISOString();
       await chrome.storage.local.set({ [this.CALENDAR_TAGS_KEY]: calendarTags });
 
-      console.log(`Taggle: Synced ${formattedEvents.length} events for @${calendarConfig.tagName}`);
+      console.log(`Noma: Synced ${formattedEvents.length} events for @${calendarConfig.tagName}`);
 
     } catch (error) {
-      console.error(`Taggle: Error syncing calendar tag ${tagId}:`, error);
+      console.error(`Noma: Error syncing calendar tag ${tagId}:`, error);
     }
   }
 
@@ -171,7 +171,7 @@ class CalendarSync {
         await chrome.storage.local.get(this.CALENDAR_CONTEXTS_KEY);
       return calendarContexts[tagId] || [];
     } catch (error) {
-      console.error('Taggle: Error getting calendar contexts:', error);
+      console.error('Noma: Error getting calendar contexts:', error);
       return [];
     }
   }
@@ -184,7 +184,7 @@ class CalendarSync {
         calendarTags[tagId].autoSync !== false
       );
 
-      console.log(`Taggle: Syncing ${tagIds.length} calendar tags`);
+      console.log(`Noma: Syncing ${tagIds.length} calendar tags`);
 
       for (const tagId of tagIds) {
         await this.syncCalendarTag(tagId);
@@ -193,7 +193,7 @@ class CalendarSync {
       }
 
     } catch (error) {
-      console.error('Taggle: Error syncing all calendar tags:', error);
+      console.error('Noma: Error syncing all calendar tags:', error);
     }
   }
 
@@ -209,7 +209,7 @@ class CalendarSync {
       }
     }, this.SYNC_INTERVAL);
 
-    console.log('Taggle: Started periodic calendar sync');
+    console.log('Noma: Started periodic calendar sync');
   }
 
   // Stop periodic sync
@@ -217,7 +217,7 @@ class CalendarSync {
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = null;
-      console.log('Taggle: Stopped periodic calendar sync');
+      console.log('Noma: Stopped periodic calendar sync');
     }
   }
 
@@ -236,10 +236,10 @@ class CalendarSync {
       delete calendarContexts[tagId];
       await chrome.storage.local.set({ [this.CALENDAR_CONTEXTS_KEY]: calendarContexts });
 
-      console.log(`Taggle: Deleted calendar tag ${tagId}`);
+      console.log(`Noma: Deleted calendar tag ${tagId}`);
 
     } catch (error) {
-      console.error('Taggle: Error deleting calendar tag:', error);
+      console.error('Noma: Error deleting calendar tag:', error);
       throw error;
     }
   }
@@ -295,7 +295,7 @@ class CalendarSync {
       await this.syncAllCalendarTags();
       return true;
     } catch (error) {
-      console.error('Taggle: Manual sync failed:', error);
+      console.error('Noma: Manual sync failed:', error);
       throw error;
     }
   }

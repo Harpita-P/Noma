@@ -1,4 +1,4 @@
-# Google Calendar Integration for Taggle
+# Google Calendar Integration for Noma
 
 This feature allows you to create dynamic tags that automatically sync with your Google Calendar events, providing calendar context when using @tag prompts.
 
@@ -21,9 +21,9 @@ This feature allows you to create dynamic tags that automatically sync with your
    - Copy the Client ID
    - **Optional**: Create an API Key if you want additional quota (Click "Create Credentials" > "API Key")
 
-### 2. Configure Taggle
+### 2. Configure Noma
 
-1. Open Taggle options page (right-click extension icon > Options)
+1. Open Noma options page (right-click extension icon > Options)
 2. Scroll to "Google Calendar Integration" section
 3. Enter your Google Client ID (API Key is optional)
 4. Click "Save Settings"
@@ -57,7 +57,7 @@ Once you've created a calendar tag, you can use it in any text field:
 
 ### What Data is Included
 
-For each meeting, Taggle provides:
+For each meeting, Noma provides:
 - **Event Title**
 - **Description** (if available)
 - **Start/End Time** (with timezone)
@@ -122,7 +122,7 @@ The system automatically filters calendar events to include only actual meetings
 Check browser console for detailed error messages:
 1. Open Developer Tools (F12)
 2. Go to Console tab
-3. Look for messages starting with "Taggle:"
+3. Look for messages starting with "Noma:"
 
 ## API Limits
 

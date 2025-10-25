@@ -455,7 +455,7 @@ Progress in AI increased interest in the topic. Proponents of AI welfare and rig
                 return;
             }
             
-            localStorage.setItem('taggle-openai-api-key', apiKey);
+            localStorage.setItem('noma-openai-api-key', apiKey);
             document.getElementById('apiKeyInput').value = '';
             statusDiv.innerHTML = 'API key saved to localStorage for testing';
             statusDiv.className = 'result small-text';
@@ -465,7 +465,7 @@ Progress in AI increased interest in the topic. Proponents of AI welfare and rig
         }
         
         function clearApiKey() {
-            localStorage.removeItem('taggle-openai-api-key');
+            localStorage.removeItem('noma-openai-api-key');
             document.getElementById('apiKeyStatus').innerHTML = 'API key cleared from localStorage';
             document.getElementById('apiKeyStatus').className = 'result';
             ragSystem = null;

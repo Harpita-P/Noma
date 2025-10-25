@@ -1,7 +1,7 @@
-# Pinterest Board Integration for Taggle
+# Pinterest Board Integration for Noma
 
 ## Overview
-This integration allows you to connect public Pinterest boards to Taggle tags via RSS feeds. Pin images are downloaded and cached as base64, ready to be passed to Gemini Nano via the Prompt API.
+This integration allows you to connect public Pinterest boards to Noma tags via RSS feeds. Pin images are downloaded and cached as base64, ready to be passed to Gemini Nano via the Prompt API.
 
 ## Core Components
 
@@ -80,7 +80,7 @@ Each pin stores:
 
 ## Storage Schema
 
-### taggle-pinterest-tags
+### noma-pinterest-tags
 Stores board configurations:
 ```javascript
 {
@@ -97,7 +97,7 @@ Stores board configurations:
 }
 ```
 
-### taggle-pinterest-contexts
+### noma-pinterest-contexts
 Stores cached pins with base64 images:
 ```javascript
 {
@@ -192,7 +192,7 @@ To test the integration:
 
 1. Find a public Pinterest board
 2. Copy the board URL
-3. Open Taggle popup
+3. Open Noma popup
 4. Click "Setup" under Pinterest integration
 5. Paste board URL and enter tag name
 6. Click "Connect Pins"
