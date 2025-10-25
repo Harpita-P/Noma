@@ -795,6 +795,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         
         console.log("Taggle: INCLUDING context in prompt:", item.id, item.type);
         
+        // Handle regular image contexts
         if (item.type === "image" && item.imageData) {
           // Convert base64 data URL to File object for Prompt API
           const imagePromise = (async () => {
@@ -808,7 +809,36 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
             }
           })();
           imagePromises.push(imagePromise);
-        } else if (item.text) {
+          
+          // Also add text if available
+          if (item.text) {
+            textParts.push(item.text.trim());
+          }
+        } 
+        // Handle Pinterest pins with base64 images
+        else if (item.type === "pinterest" && item.imageBase64) {
+          console.log("Taggle: Processing Pinterest pin with image:", item.title);
+          
+          // Convert base64 to File object for Prompt API
+          const imagePromise = (async () => {
+            try {
+              const response = await fetch(item.imageBase64);
+              const blob = await response.blob();
+              return new File([blob], `pinterest-${item.id}`, { type: 'image/jpeg' });
+            } catch (e) {
+              console.warn("Taggle: Could not process Pinterest image:", e);
+              return null;
+            }
+          })();
+          imagePromises.push(imagePromise);
+          
+          // Add Pinterest pin text description
+          if (item.text) {
+            textParts.push(item.text.trim());
+          }
+        } 
+        // Handle text-only contexts
+        else if (item.text) {
           textParts.push(item.text.trim());
         }
       });
