@@ -5,6 +5,10 @@
     <title>noma</title>
     <link href="https://api.fontshare.com/v2/css?f[]=ranade@400,500,600&display=swap" rel="stylesheet">
     <style>
+      * {
+        font-family: 'Ranade', sans-serif;
+      }
+      
       body { 
         font-family: 'Ranade', sans-serif;
         margin: 0; 
@@ -67,7 +71,7 @@
       h1 { 
         font-size: 18px; 
         font-weight: 600;
-        margin: 0 0 0 -29px;
+        margin: 0 0 0 -15px;
         color: #1f2937;
       }
       
@@ -116,19 +120,19 @@
         max-width: 500px;
       }
       
-      input[type=text], select, input[type=file] {
+      input[type=text], input[type=password], select, input[type=file] {
         width: 100%;
-        padding: 10px 14px;
+        padding: 8px 12px;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
-        font-size: 14px;
+        font-size: 13px;
         background: #ffffff;
         transition: all 0.2s ease;
         font-family: inherit;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       }
       
-      input[type=text]:focus, select:focus {
+      input[type=text]:focus, input[type=password]:focus, select:focus {
         outline: none;
         border-color: #000000;
         box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
@@ -138,16 +142,18 @@
       input[type=file] {
         padding: 6px 8px;
         font-size: 13px;
+        width: 100% !important;
+        box-sizing: border-box;
       }
       
       .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 10px 20px;
+        padding: 8px 16px;
         border: 1px solid #d1d5db;
         border-radius: 8px;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 500;
         background: #ffffff;
         color: #374151;
@@ -155,7 +161,7 @@
         transition: all 0.2s ease;
         font-family: inherit;
         white-space: nowrap;
-        min-width: 120px;
+        min-width: 100px;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       }
       
@@ -445,10 +451,159 @@
       }
       
       .btn-compact {
-        padding: 6px 12px;
-        font-size: 12px;
-        min-width: 70px;
+        padding: 4px 8px;
+        font-size: 11px;
+        min-width: 60px;
+        border-radius: 6px;
       }
+      
+      .btn-mini {
+        padding: 3px 6px;
+        font-size: 10px;
+        min-width: 50px;
+        border-radius: 4px;
+      }
+      
+      .two-column-layout {
+        display: grid;
+        grid-template-columns: 0.6fr 1.4fr;
+        gap: 32px;
+        align-items: start;
+      }
+      
+      .column {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      
+      /* Responsive design for smaller screens */
+      @media (max-width: 1000px) {
+        .two-column-layout {
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+      }
+      
+      /* Compact integration items */
+      .integration-item {
+        padding: 10px 12px;
+        min-height: auto;
+      }
+      
+      .integration-icon {
+        font-size: 16px;
+      }
+      
+      .integration-name {
+        font-size: 13px;
+      }
+      
+      .integration-desc {
+        font-size: 11px;
+      }
+      
+      .integration-status {
+        font-size: 10px;
+        padding: 2px 5px;
+        min-width: 60px;
+      }
+      
+      /* Compact tile-based integration layout */
+      .integration-tiles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        padding: 20px;
+        margin-top: 16px;
+      }
+      
+      .integration-item-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: relative;
+        z-index: 2;
+      }
+      
+      .integration-tile {
+        background: #ffffff;
+        border: 1px solid #000000;
+        border-radius: 12px;
+        padding: 12px;
+        text-align: center;
+        transition: all 0.2s ease;
+        position: relative;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        flex-shrink: 0;
+      }
+      
+      .integration-tile:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+      
+      .integration-tile.connected {
+        border-color: #10b981;
+        background: #f0fdf4;
+      }
+      
+      .integration-tile img {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+      }
+      
+      .integration-details {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 120px;
+      }
+      
+      .integration-tile-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0;
+      }
+      
+      .integration-tile-desc {
+        font-size: 11px;
+        color: #6b7280;
+        line-height: 1.3;
+        margin: 0;
+      }
+      
+      .integration-tile-status {
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-weight: 500;
+        background: #f3f4f6;
+        color: #6b7280;
+        display: inline-block;
+        width: fit-content;
+      }
+      
+      .integration-tile-status.connected {
+        background: #dcfce7;
+        color: #16a34a;
+      }
+      
+      .integration-tile-button {
+        padding: 3px 8px;
+        font-size: 10px;
+        min-width: 50px;
+        border-radius: 6px;
+        margin-top: 4px;
+      }
+      
     </style>
   </head>
   <body>
@@ -460,29 +615,49 @@
 
     <div class="scrollable-content">
       <div class="main-content">
-      <div class="form-group">
-        <label class="form-label">OpenAI API Key (for RAG)</label>
-        <div class="form-row">
-          <input id="openai-key" type="password" placeholder="Enter OpenAI API key (sk-...)" style="flex: 1;" />
-          <button id="save-openai-key" class="btn">Save Key</button>
-        </div>
-        <div id="openai-key-status" class="status-text">Required for semantic search on large contexts (25k+ chars)</div>
-      </div>
+        <div class="two-column-layout">
+          <!-- Left Column -->
+          <div class="column">
+            <div class="form-group">
+              <label class="form-label">OpenAI API Key</label>
+              <div class="form-row">
+                <input id="openai-key" type="password" placeholder="Enter OpenAI API key (sk-...)" style="flex: 1;" />
+                <button id="save-openai-key" class="btn">Save Key</button>
+              </div>
+              <div id="openai-key-status" class="status-text">Required for semantic search on large contexts (25k+ chars)</div>
+            </div>
 
-      <div class="form-group">
-        <label class="form-label">Create Tag</label>
-        <div class="form-row">
-          <input id="tag-name" type="text" placeholder="Enter tag name (e.g., myResearch)" style="flex: 1;" />
-          <button id="create" class="btn btn-primary">Create</button>
-        </div>
-        <div class="status-text">Will display as @myResearch</div>
-      </div>
+            <div class="form-group">
+              <label class="form-label">Create Tag</label>
+              <div class="form-row">
+                <input id="tag-name" type="text" placeholder="Enter tag name (e.g., myResearch)" style="flex: 1;" />
+                <button id="create" class="btn btn-primary">Create</button>
+              </div>
+              <div class="status-text">Will display as @myResearch</div>
+            </div>
 
-      <!-- Integrations Section -->
-      <div class="form-group">
-        <div class="section-header">
-          <h3 class="section-title">🔗 Integrations</h3>
-        </div>
+            <!-- PDF Upload Section -->
+            <div class="form-group">
+              <div class="section-header">
+                <h3 class="section-title">Connect Document</h3>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <input id="pdf-file" type="file" accept=".pdf" />
+                <select id="pdf-tag-select">
+                  <option value="">Select tag...</option>
+                </select>
+                <button id="upload-pdf" class="btn btn-primary" disabled style="padding: 6px 12px; min-width: 80px; align-self: flex-start;">Upload</button>
+              </div>
+              <div id="upload-status" class="status-text"></div>
+            </div>
+          </div>
+
+          <!-- Right Column - Integrations -->
+          <div class="column">
+            <div class="form-group">
+              <div class="section-header">
+                <h3 class="section-title">🔗 Integrations</h3>
+              </div>
         
         <!-- Google Setup -->
         <div id="google-setup" class="setup-section">
@@ -493,69 +668,61 @@
           <div id="calendar-auth-status" class="status-text"></div>
         </div>
         
-        <!-- Integration Items -->
-        <div class="integration-list">
+        <!-- Integration Tiles -->
+        <div class="integration-tiles">
           <!-- Calendar Integration -->
-          <div class="integration-item">
-            <div class="integration-info">
-              <span class="integration-icon">📅</span>
-              <div class="integration-details">
-                <span class="integration-name">Calendar</span>
-                <span class="integration-desc">@myCalendar - Next 30 days</span>
-              </div>
+          <div class="integration-item-wrapper">
+            <div class="integration-tile" id="calendar-tile">
+              <img src="gc-logo.png" alt="Google Calendar" />
             </div>
-            <div class="integration-actions">
-              <div class="integration-status" id="calendar-status">Not connected</div>
-              <button id="calendar-connect" class="btn btn-primary btn-compact">Connect</button>
-              <button id="calendar-disconnect" class="btn btn-compact" style="display: none;">Disconnect</button>
+            <div class="integration-details">
+              <div class="integration-tile-name">Calendar</div>
+              <div class="integration-tile-desc">@myCalendar - Next 30 days</div>
+              <div class="integration-tile-status" id="calendar-status">Not connected</div>
+              <button id="calendar-connect" class="btn btn-primary integration-tile-button">Connect</button>
+              <button id="calendar-disconnect" class="btn integration-tile-button" style="display: none;">Disconnect</button>
             </div>
           </div>
           
           <!-- Gmail Integration -->
-          <div class="integration-item">
-            <div class="integration-info">
-              <span class="integration-icon">📧</span>
-              <div class="integration-details">
-                <span class="integration-name">Gmail</span>
-                <span class="integration-desc">@myEmails - Recent emails (50)</span>
-              </div>
+          <div class="integration-item-wrapper">
+            <div class="integration-tile" id="gmail-tile">
+              <img src="email-logo.png" alt="Gmail" />
             </div>
-            <div class="integration-actions">
-              <div class="integration-status" id="gmail-status">Not connected</div>
-              <button id="gmail-connect" class="btn btn-primary btn-compact">Connect</button>
-              <button id="gmail-disconnect" class="btn btn-compact" style="display: none;">Disconnect</button>
+            <div class="integration-details">
+              <div class="integration-tile-name">Gmail</div>
+              <div class="integration-tile-desc">@myEmails - Recent emails (50)</div>
+              <div class="integration-tile-status" id="gmail-status">Not connected</div>
+              <button id="gmail-connect" class="btn btn-primary integration-tile-button">Connect</button>
+              <button id="gmail-disconnect" class="btn integration-tile-button" style="display: none;">Disconnect</button>
             </div>
           </div>
           
           <!-- Notion Integration -->
-          <div class="integration-item">
-            <div class="integration-info">
-              <span class="integration-icon">📝</span>
-              <div class="integration-details">
-                <span class="integration-name">Notion</span>
-                <span class="integration-desc">@myNotion - Sync page content</span>
-              </div>
+          <div class="integration-item-wrapper">
+            <div class="integration-tile" id="notion-tile">
+              <img src="not-logo.png" alt="Notion" />
             </div>
-            <div class="integration-actions">
-              <div class="integration-status" id="notion-status">Not connected</div>
-              <button id="notion-setup" class="btn btn-primary btn-compact">Setup</button>
-              <button id="notion-disconnect" class="btn btn-compact" style="display: none;">Disconnect</button>
+            <div class="integration-details">
+              <div class="integration-tile-name">Notion</div>
+              <div class="integration-tile-desc">@myNotion - Sync page content</div>
+              <div class="integration-tile-status" id="notion-status">Not connected</div>
+              <button id="notion-setup" class="btn btn-primary integration-tile-button">Setup</button>
+              <button id="notion-disconnect" class="btn integration-tile-button" style="display: none;">Disconnect</button>
             </div>
           </div>
           
           <!-- Pinterest Integration -->
-          <div class="integration-item">
-            <div class="integration-info">
-              <span class="integration-icon">📌</span>
-              <div class="integration-details">
-                <span class="integration-name">Pinterest</span>
-                <span class="integration-desc">@myBoard - Sync board pins</span>
-              </div>
+          <div class="integration-item-wrapper">
+            <div class="integration-tile" id="pinterest-tile">
+              <img src="pin-logo.png" alt="Pinterest" />
             </div>
-            <div class="integration-actions">
-              <div class="integration-status" id="pinterest-status">Not connected</div>
-              <button id="pinterest-setup" class="btn btn-primary btn-compact">Setup</button>
-              <button id="pinterest-disconnect" class="btn btn-compact" style="display: none;">Disconnect</button>
+            <div class="integration-details">
+              <div class="integration-tile-name">Pinterest</div>
+              <div class="integration-tile-desc">@myBoard - Sync board pins</div>
+              <div class="integration-tile-status" id="pinterest-status">Not connected</div>
+              <button id="pinterest-setup" class="btn btn-primary integration-tile-button">Setup</button>
+              <button id="pinterest-disconnect" class="btn integration-tile-button" style="display: none;">Disconnect</button>
             </div>
           </div>
         </div>
@@ -613,49 +780,35 @@
         <div id="pinterest-tags-section" style="display: none; margin-top: 16px;">
           <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Pinterest Tags</h4>
           <div id="pinterest-tags-list"></div>
+              
+              <!-- Hidden elements for compatibility -->
+              <div style="display: none;">
+                <input id="calendar-api-key" />
+                <button id="calendar-signin"></button>
+                <button id="calendar-signout"></button>
+                <button id="gmail-signin"></button>
+                <button id="gmail-signout"></button>
+                <div id="calendar-tag-creation"></div>
+                <div id="gmail-tag-creation"></div>
+                <div id="calendar-tags-section"></div>
+                <div id="gmail-tags-section"></div>
+                <div id="calendar-tags-list"></div>
+                <div id="gmail-tags-list"></div>
+                <div id="gmail-auth-status"></div>
+                <button id="calendar-sync-all"></button>
+                <button id="gmail-sync-all"></button>
+                <input id="calendar-tag-name" />
+                <select id="calendar-tag-type">
+                  <option value="upcoming">Next 30 Days</option>
+                </select>
+                <button id="create-calendar-tag"></button>
+                <input id="gmail-tag-name" />
+                <select id="gmail-tag-type"></select>
+                <button id="create-gmail-tag"></button>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <!-- Hidden elements for compatibility -->
-        <div style="display: none;">
-          <input id="calendar-api-key" />
-          <button id="calendar-signin"></button>
-          <button id="calendar-signout"></button>
-          <button id="gmail-signin"></button>
-          <button id="gmail-signout"></button>
-          <div id="calendar-tag-creation"></div>
-          <div id="gmail-tag-creation"></div>
-          <div id="calendar-tags-section"></div>
-          <div id="gmail-tags-section"></div>
-          <div id="calendar-tags-list"></div>
-          <div id="gmail-tags-list"></div>
-          <div id="gmail-auth-status"></div>
-          <button id="calendar-sync-all"></button>
-          <button id="gmail-sync-all"></button>
-          <input id="calendar-tag-name" />
-          <select id="calendar-tag-type">
-            <option value="upcoming">Next 30 Days</option>
-          </select>
-          <button id="create-calendar-tag"></button>
-          <input id="gmail-tag-name" />
-          <select id="gmail-tag-type"></select>
-          <button id="create-gmail-tag"></button>
-        </div>
-      </div>
-      
-      <!-- PDF Upload Section -->
-      <div class="form-group">
-        <div class="section-header">
-          <h3 class="section-title">📄 Upload PDF</h3>
-        </div>
-        <div class="form-row">
-          <input id="pdf-file" type="file" accept=".pdf" style="flex: 1;" />
-          <select id="pdf-tag-select" style="width: 140px;">
-            <option value="">Select tag...</option>
-          </select>
-          <button id="upload-pdf" class="btn btn-primary" disabled>Upload</button>
-        </div>
-        <div id="upload-status" class="status-text"></div>
-      </div>
 
 
       <div class="divider"></div>

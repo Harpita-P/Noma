@@ -1345,7 +1345,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         gap: 12px;
         border-radius: 12px 12px 0 0;
       ">
-        <div style="display: flex; align-items: center; gap: 2px;">
+        
         ${liveContext ? `
           <div style="
             position: absolute;
