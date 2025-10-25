@@ -57,6 +57,18 @@ const els = {
   notionSetupStatus: document.getElementById("notion-setup-status"),
   notionTagsSection: document.getElementById("notion-tags-section"),
   notionTagsList: document.getElementById("notion-tags-list"),
+  // Pinterest elements
+  pinterestSetup: document.getElementById("pinterest-setup"),
+  pinterestDisconnect: document.getElementById("pinterest-disconnect"),
+  pinterestStatus: document.getElementById("pinterest-status"),
+  pinterestSetupModal: document.getElementById("pinterest-setup-modal"),
+  pinterestBoardUrl: document.getElementById("pinterest-board-url"),
+  pinterestTagName: document.getElementById("pinterest-tag-name"),
+  pinterestSave: document.getElementById("pinterest-save"),
+  pinterestCancel: document.getElementById("pinterest-cancel"),
+  pinterestSetupStatus: document.getElementById("pinterest-setup-status"),
+  pinterestTagsSection: document.getElementById("pinterest-tags-section"),
+  pinterestTagsList: document.getElementById("pinterest-tags-list"),
 };
 
 els.saveOpenaiKey.onclick = onSaveOpenAIKey;
@@ -89,6 +101,12 @@ els.notionSetup.onclick = onNotionSetup;
 els.notionDisconnect.onclick = onNotionDisconnect;
 els.notionSave.onclick = onNotionSave;
 els.notionCancel.onclick = onNotionCancel;
+
+// Pinterest event handlers
+els.pinterestSetup.onclick = onPinterestSetup;
+els.pinterestDisconnect.onclick = onPinterestDisconnect;
+els.pinterestSave.onclick = onPinterestSave;
+els.pinterestCancel.onclick = onPinterestCancel;
 
 // Load PDF extractor
 const pdfScript = document.createElement('script');
@@ -126,6 +144,20 @@ notionSyncScript.src = 'notion-sync.js';
 notionSyncScript.onload = () => console.log('Taggle: notion-sync.js loaded');
 notionSyncScript.onerror = (e) => console.error('Taggle: Failed to load notion-sync.js', e);
 document.head.appendChild(notionSyncScript);
+
+// Load Pinterest services
+const pinterestServiceScript = document.createElement('script');
+pinterestServiceScript.src = 'pinterest-service.js';
+pinterestServiceScript.onload = () => console.log('Taggle: pinterest-service.js loaded');
+pinterestServiceScript.onerror = (e) => console.error('Taggle: Failed to load pinterest-service.js', e);
+document.head.appendChild(pinterestServiceScript);
+
+const pinterestSyncScript = document.createElement('script');
+pinterestSyncScript.src = 'pinterest-sync.js';
+pinterestSyncScript.onload = () => console.log('Taggle: pinterest-sync.js loaded');
+pinterestSyncScript.onerror = (e) => console.error('Taggle: Failed to load pinterest-sync.js', e);
+document.head.appendChild(pinterestSyncScript);
+
 // Load RAG system
 const ragScript = document.createElement('script');
 ragScript.src = 'rag-system.js';
@@ -264,6 +296,13 @@ async function render() {
     await renderNotionComponents();
   } catch (error) {
     console.warn('Could not render Notion components:', error);
+  }
+  
+  // Render Pinterest components
+  try {
+    await renderPinterestComponents();
+  } catch (error) {
+    console.warn('Could not render Pinterest components:', error);
   }
   
   // Update integration statuses
@@ -1017,6 +1056,7 @@ function updateIntegrationStatuses() {
   updateCalendarStatus();
   updateGmailStatus();
   updateNotionStatus();
+  updatePinterestStatus();
 }
 
 function updateCalendarStatus() {
@@ -1499,5 +1539,277 @@ async function waitForNotionSync() {
     throw new Error('Notion sync not loaded. Please refresh and try again.');
   }
   return window.NotionSync;
+}
+
+// ============ Pinterest Integration Functions ============
+
+// Show Pinterest setup modal
+function onPinterestSetup() {
+  els.pinterestSetupModal.style.display = 'block';
+  els.pinterestSetupStatus.textContent = '';
+}
+
+// Hide Pinterest setup modal
+function onPinterestCancel() {
+  els.pinterestSetupModal.style.display = 'none';
+  els.pinterestBoardUrl.value = '';
+  els.pinterestTagName.value = '';
+  els.pinterestSetupStatus.textContent = '';
+}
+
+// Save Pinterest settings and create tag
+async function onPinterestSave() {
+  try {
+    const boardUrl = els.pinterestBoardUrl.value.trim();
+    const tagName = els.pinterestTagName.value.trim() || 'myBoard';
+    
+    if (!boardUrl) {
+      els.pinterestSetupStatus.textContent = 'Please enter a board URL';
+      els.pinterestSetupStatus.style.color = '#ef4444';
+      return;
+    }
+    
+    els.pinterestSave.disabled = true;
+    els.pinterestSetupStatus.textContent = 'Connecting to Pinterest...';
+    els.pinterestSetupStatus.style.color = '#6b7280';
+    
+    // Wait for Pinterest services to load
+    await waitForPinterestService();
+    await waitForPinterestSync();
+    
+    // Initialize the service
+    await window.PinterestSync.initialize();
+    
+    els.pinterestSetupStatus.textContent = 'Creating tag...';
+    
+    // Create a regular tag first
+    const tag = await createTag(tagName);
+    if (!tag) {
+      els.pinterestSetupStatus.textContent = 'Tag name already exists';
+      els.pinterestSetupStatus.style.color = '#ef4444';
+      els.pinterestSave.disabled = false;
+      return;
+    }
+    
+    els.pinterestSetupStatus.textContent = 'Fetching pins (this may take a moment)...';
+    
+    // Create Pinterest tag
+    const result = await window.PinterestSync.createPinterestTag(tag.id, boardUrl, tagName);
+    
+    if (result.success) {
+      els.pinterestSetupStatus.textContent = '✓ Connected successfully!';
+      els.pinterestSetupStatus.style.color = '#10b981';
+      
+      // Close modal and refresh
+      setTimeout(() => {
+        onPinterestCancel();
+        render();
+        renderPinterestComponents();
+        updateIntegrationStatuses();
+      }, 1500);
+    } else {
+      els.pinterestSetupStatus.textContent = 'Failed: ' + result.error;
+      els.pinterestSetupStatus.style.color = '#ef4444';
+      // Delete the tag we created since Pinterest setup failed
+      await deleteTag(tag.id);
+    }
+    
+  } catch (error) {
+    console.error('Pinterest setup failed:', error);
+    els.pinterestSetupStatus.textContent = 'Setup failed: ' + error.message;
+    els.pinterestSetupStatus.style.color = '#ef4444';
+  } finally {
+    els.pinterestSave.disabled = false;
+  }
+}
+
+// Disconnect Pinterest
+async function onPinterestDisconnect() {
+  if (!confirm('Disconnect Pinterest? This will delete all Pinterest tags and their contexts.')) {
+    return;
+  }
+  
+  try {
+    await waitForPinterestSync();
+    
+    // Get all Pinterest tags
+    const pinterestTags = await window.PinterestSync.getAllPinterestTags();
+    
+    // Delete each Pinterest tag and its regular tag
+    for (const tagId of Object.keys(pinterestTags)) {
+      await window.PinterestSync.deletePinterestTag(tagId);
+      await deleteTag(tagId);
+    }
+    
+    await render();
+    await renderPinterestComponents();
+    updateIntegrationStatuses();
+    
+  } catch (error) {
+    console.error('Pinterest disconnect failed:', error);
+    alert('Disconnect failed: ' + error.message);
+  }
+}
+
+// Render Pinterest components
+async function renderPinterestComponents() {
+  try {
+    // Check if Pinterest services are available
+    if (typeof window.PinterestSync === 'undefined') {
+      console.log('Taggle: PinterestSync not loaded yet, skipping render');
+      return;
+    }
+    
+    const pinterestTags = await window.PinterestSync.getAllPinterestTags();
+    if (!pinterestTags) {
+      console.log('Taggle: No Pinterest tags found');
+      return;
+    }
+    
+    const tagIds = Object.keys(pinterestTags);
+    
+    if (tagIds.length === 0) {
+      els.pinterestTagsSection.style.display = 'none';
+      return;
+    }
+    
+    els.pinterestTagsSection.style.display = 'block';
+    
+    let html = '';
+    for (const tagId of tagIds) {
+      const config = pinterestTags[tagId];
+      const lastSynced = config.lastSynced 
+        ? new Date(config.lastSynced).toLocaleString()
+        : 'Never';
+      const pinCount = config.pinCount || 0;
+      
+      html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
+          <div>
+            <div style="font-weight: 500; color: #1f2937;">@${config.tagName || 'Unnamed'}</div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${config.username}/${config.boardName}</div>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">${pinCount} pins • Last synced: ${lastSynced}</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-small pinterest-sync-btn" data-tag-id="${tagId}">Sync</button>
+            <button class="btn btn-small pinterest-delete-btn" data-tag-id="${tagId}" style="background: #ef4444; color: white; border-color: #ef4444;">Delete</button>
+          </div>
+        </div>
+      `;
+    }
+    
+    els.pinterestTagsList.innerHTML = html;
+    
+    // Add event listeners for sync buttons
+    els.pinterestTagsList.querySelectorAll('.pinterest-sync-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const tagId = btn.dataset.tagId;
+        try {
+          btn.disabled = true;
+          btn.textContent = 'Syncing...';
+          await window.PinterestSync.syncPinterestTag(tagId);
+          await renderPinterestComponents();
+          await render();
+        } catch (error) {
+          console.error('Error syncing Pinterest tag:', error);
+          alert('Sync failed: ' + error.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Sync';
+        }
+      };
+    });
+    
+    // Add event listeners for delete buttons
+    els.pinterestTagsList.querySelectorAll('.pinterest-delete-btn').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('Delete this Pinterest tag? This will also delete the regular tag and all its contexts.')) {
+          return;
+        }
+        
+        const tagId = btn.dataset.tagId;
+        try {
+          await window.PinterestSync.deletePinterestTag(tagId);
+          await deleteTag(tagId);
+          await renderPinterestComponents();
+          await render();
+        } catch (error) {
+          console.error('Error deleting Pinterest tag:', error);
+          alert('Delete failed: ' + error.message);
+        }
+      };
+    });
+    
+  } catch (error) {
+    console.error('Error rendering Pinterest components:', error);
+  }
+}
+
+// Update Pinterest status
+function updatePinterestStatus() {
+  const statusEl = els.pinterestStatus;
+  if (!statusEl) return;
+  
+  try {
+    // Check if Pinterest is configured
+    if (typeof window.PinterestSync === 'undefined') {
+      statusEl.textContent = 'Not connected';
+      statusEl.className = 'integration-status';
+      els.pinterestSetup.style.display = 'inline-flex';
+      els.pinterestDisconnect.style.display = 'none';
+      return;
+    }
+    
+    window.PinterestSync.getAllPinterestTags().then(pinterestTags => {
+      const hasTag = Object.keys(pinterestTags).length > 0;
+      
+      if (hasTag) {
+        statusEl.textContent = 'Connected';
+        statusEl.className = 'integration-status connected';
+        els.pinterestSetup.style.display = 'none';
+        els.pinterestDisconnect.style.display = 'inline-flex';
+      } else {
+        statusEl.textContent = 'Not connected';
+        statusEl.className = 'integration-status';
+        els.pinterestSetup.style.display = 'inline-flex';
+        els.pinterestDisconnect.style.display = 'none';
+      }
+    }).catch(err => {
+      console.warn('Taggle: Error getting Pinterest tags:', err);
+      statusEl.textContent = 'Not connected';
+      statusEl.className = 'integration-status';
+    });
+  } catch (error) {
+    console.warn('Taggle: Error updating Pinterest status:', error);
+    statusEl.textContent = 'Not connected';
+    statusEl.className = 'integration-status';
+  }
+}
+
+// Helper functions
+async function waitForPinterestService() {
+  let attempts = 0;
+  while (!window.PinterestService && attempts < 100) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  if (!window.PinterestService) {
+    console.error('PinterestService not found after waiting');
+    throw new Error('Pinterest service not loaded. Please refresh and try again.');
+  }
+  return window.PinterestService;
+}
+
+async function waitForPinterestSync() {
+  let attempts = 0;
+  while (!window.PinterestSync && attempts < 100) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  if (!window.PinterestSync) {
+    console.error('PinterestSync not found after waiting');
+    throw new Error('Pinterest sync not loaded. Please refresh and try again.');
+  }
+  return window.PinterestSync;
 }
 

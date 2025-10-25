@@ -143,6 +143,20 @@
         window.taggleNotionSyncLoaded = true;
       }
 
+      if (!window.tagglePinterestServiceLoaded) {
+        const pinterestServiceScript = document.createElement('script');
+        pinterestServiceScript.src = chrome.runtime.getURL('pinterest-service.js');
+        document.head.appendChild(pinterestServiceScript);
+        window.tagglePinterestServiceLoaded = true;
+      }
+
+      if (!window.tagglePinterestSyncLoaded) {
+        const pinterestSyncScript = document.createElement('script');
+        pinterestSyncScript.src = chrome.runtime.getURL('pinterest-sync.js');
+        document.head.appendChild(pinterestSyncScript);
+        window.tagglePinterestSyncLoaded = true;
+      }
+
       // Wait a bit for scripts to load
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -155,6 +169,9 @@
       }
       if (window.NotionSync && !window.NotionSync.initialized) {
         await window.NotionSync.initialize();
+      }
+      if (window.PinterestSync && !window.PinterestSync.initialized) {
+        await window.PinterestSync.initialize();
       }
     } catch (error) {
       console.warn("Taggle: Could not load dynamic services:", error);
@@ -533,6 +550,43 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         console.warn("Taggle: Error fetching Notion contexts:", notionError);
       }
       
+      // Check if this is a Pinterest tag and merge Pinterest contexts
+      try {
+        // Direct Pinterest context lookup (without PinterestSync dependency)
+        const { 'taggle-pinterest-tags': pinterestTags = {}, 'taggle-pinterest-contexts': pinterestContexts = {} } = 
+          await chrome.storage.local.get(['taggle-pinterest-tags', 'taggle-pinterest-contexts']);
+        
+        console.log('Taggle: Checking Pinterest tags for tagId:', tagId);
+        console.log('Taggle: Available Pinterest tags:', Object.keys(pinterestTags));
+        
+        // Check if this tagId is a Pinterest tag
+        const isPinterestTag = pinterestTags[tagId] !== undefined;
+        console.log('Taggle: Is Pinterest tag?', tagId, isPinterestTag);
+        
+        if (isPinterestTag) {
+          const pins = pinterestContexts[tagId] || [];
+          console.log('Taggle: Found Pinterest pins:', pins.length);
+          
+          // Convert Pinterest pins to context format and merge
+          const formattedPinterestContexts = pins.map(pin => ({
+            id: pin.id || `pinterest-${Date.now()}-${Math.random()}`,
+            type: "pinterest",
+            text: `Pin: ${pin.title}\n${pin.description ? 'Description: ' + pin.description : ''}\nLink: ${pin.link}`,
+            title: pin.title || 'Pinterest Pin',
+            url: pin.link,
+            source: "pinterest",
+            createdAt: pin.createdAt || new Date().toISOString(),
+            imageBase64: pin.imageBase64, // Store base64 image for Gemini
+            pinterestData: pin // Store full pin data
+          }));
+          
+          console.log('Taggle: Formatted Pinterest contexts:', formattedPinterestContexts.length);
+          return [...formattedPinterestContexts, ...regularContexts];
+        }
+      } catch (pinterestError) {
+        console.warn("Taggle: Error fetching Pinterest contexts:", pinterestError);
+      }
+      
       return regularContexts;
     } catch (error) {
       if (error.message.includes('Extension context invalidated')) {
@@ -617,18 +671,29 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         console.warn('Taggle: Could not load Notion tags:', error);
       }
       
+      // Get Pinterest tags to check which tags are Pinterest tags
+      let pinterestTags = {};
+      try {
+        const { 'taggle-pinterest-tags': storedPinterestTags = {} } = await chrome.storage.local.get('taggle-pinterest-tags');
+        pinterestTags = storedPinterestTags;
+      } catch (error) {
+        console.warn('Taggle: Could not load Pinterest tags:', error);
+      }
+      
       for (const tag of tags) {
         const counts = await getContextTypeCounts(tag.id);
         const isCalendarTag = !!calendarTags[tag.id];
         const isGmailTag = !!gmailTags[tag.id];
         const isNotionTag = !!notionTags[tag.id];
+        const isPinterestTag = !!pinterestTags[tag.id];
         
         tagsWithCounts.push({
           ...tag,
           contextCounts: counts,
           isCalendarTag: isCalendarTag,
           isGmailTag: isGmailTag,
-          isNotionTag: isNotionTag
+          isNotionTag: isNotionTag,
+          isPinterestTag: isPinterestTag
         });
       }
       
@@ -966,10 +1031,10 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       storedCaretPosition: storedCaretPosition
     });
 
-    // Sort tags: dynamic tags (calendar, gmail, notion) first, then regular tags
+    // Sort tags: dynamic tags (calendar, gmail, notion, pinterest) first, then regular tags
     const sortedTags = tagsWithCounts.sort((a, b) => {
-      const aIsDynamic = a.isCalendarTag || a.isGmailTag || a.isNotionTag;
-      const bIsDynamic = b.isCalendarTag || b.isGmailTag || b.isNotionTag;
+      const aIsDynamic = a.isCalendarTag || a.isGmailTag || a.isNotionTag || a.isPinterestTag;
+      const bIsDynamic = b.isCalendarTag || b.isGmailTag || b.isNotionTag || b.isPinterestTag;
       
       // Dynamic tags first
       if (aIsDynamic && !bIsDynamic) return -1;
@@ -983,16 +1048,17 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     currentTagColors = tagsWithColors;
 
     // Separate dynamic and regular tags for UI grouping
-    const dynamicTags = tagsWithColors.filter(tag => tag.isCalendarTag || tag.isGmailTag || tag.isNotionTag);
-    const regularTags = tagsWithColors.filter(tag => !tag.isCalendarTag && !tag.isGmailTag && !tag.isNotionTag);
+    const dynamicTags = tagsWithColors.filter(tag => tag.isCalendarTag || tag.isGmailTag || tag.isNotionTag || tag.isPinterestTag);
+    const regularTags = tagsWithColors.filter(tag => !tag.isCalendarTag && !tag.isGmailTag && !tag.isNotionTag && !tag.isPinterestTag);
 
     // Helper function to render a tag
     const renderTag = (tag, index, isDynamic = false) => {
       const tagColor = tag.color;
-      const counts = tag.contextCounts || { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, notion: 0, total: 0 };
+      const counts = tag.contextCounts || { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, notion: 0, pinterest: 0, total: 0 };
       const isCalendarTag = tag.isCalendarTag || false;
       const isGmailTag = tag.isGmailTag || false;
       const isNotionTag = tag.isNotionTag || false;
+      const isPinterestTag = tag.isPinterestTag || false;
       
       // Create context type indicators
       const indicators = [];
@@ -1030,6 +1096,17 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           border: 1px solid rgba(255,255,255,0.2);
         " title="Notion Tag" />`);
+      } else if (isPinterestTag) {
+        // Pinterest icon as tilted tile for dynamic tags
+        indicators.push(`<img src="${chrome.runtime.getURL('pin-logo.png')}" style="
+          width: 14px;
+          height: 14px;
+          margin-right: 3px;
+          border-radius: 3px;
+          transform: rotate(-8deg);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+        " title="Pinterest Tag" />`);
       } else {
         // Regular numbered indicators
         if (counts.text > 0) {
@@ -1191,9 +1268,9 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       indicatorContainer.onmouseenter = () => {
         console.log("Taggle: Hovering over indicators for tag ID:", tagId);
         if (tagId) {
-          // Check if this is a dynamic tag (calendar, Gmail, or Notion tag)
+          // Check if this is a dynamic tag (calendar, Gmail, Notion, or Pinterest tag)
           const tag = currentTagColors.find(t => t.id === tagId);
-          if (tag && (tag.isCalendarTag || tag.isGmailTag || tag.isNotionTag)) {
+          if (tag && (tag.isCalendarTag || tag.isGmailTag || tag.isNotionTag || tag.isPinterestTag)) {
             // Show simple info panel for dynamic tags
             setTimeout(() => showDynamicTagInfo(tag, tagElement), 100);
           } else {
@@ -1346,6 +1423,32 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           line-height: 1.4;
           text-align: center;
         ">Connected to your Notion page<br>Automatically syncs data</div>
+      `;
+    } else if (tag.isPinterestTag) {
+      infoContent = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        ">
+          <img src="${chrome.runtime.getURL('pin-logo.png')}" style="
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+          " />
+          <div style="
+            font-size: 10px;
+            color: #fff;
+            font-weight: 600;
+          ">Pinterest</div>
+        </div>
+        <div style="
+          font-size: 9px;
+          color: #ccc;
+          line-height: 1.4;
+          text-align: center;
+        ">Connected to your Pinterest board<br>Cached pins with images</div>
       `;
     }
 

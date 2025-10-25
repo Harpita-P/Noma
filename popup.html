@@ -542,6 +542,22 @@
               <button id="notion-disconnect" class="btn btn-compact" style="display: none;">Disconnect</button>
             </div>
           </div>
+          
+          <!-- Pinterest Integration -->
+          <div class="integration-item">
+            <div class="integration-info">
+              <span class="integration-icon">📌</span>
+              <div class="integration-details">
+                <span class="integration-name">Pinterest</span>
+                <span class="integration-desc">@myBoard - Sync board pins</span>
+              </div>
+            </div>
+            <div class="integration-actions">
+              <div class="integration-status" id="pinterest-status">Not connected</div>
+              <button id="pinterest-setup" class="btn btn-primary btn-compact">Setup</button>
+              <button id="pinterest-disconnect" class="btn btn-compact" style="display: none;">Disconnect</button>
+            </div>
+          </div>
         </div>
         
         <!-- Notion Setup Modal (hidden by default) -->
@@ -572,6 +588,31 @@
         <div id="notion-tags-section" style="display: none; margin-top: 16px;">
           <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Notion Tags</h4>
           <div id="notion-tags-list"></div>
+        </div>
+        
+        <!-- Pinterest Setup Modal (hidden by default) -->
+        <div id="pinterest-setup-modal" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Pinterest Setup</h4>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" style="font-size: 13px;">Board URL</label>
+            <input id="pinterest-board-url" type="text" placeholder="https://pinterest.com/username/board or pin.it/..." style="width: 100%; margin-bottom: 8px;" />
+            <div style="font-size: 11px; color: #6b7280;">Paste a public Pinterest board URL or pin.it short link</div>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" style="font-size: 13px;">Tag Name</label>
+            <input id="pinterest-tag-name" type="text" placeholder="myDreamKitchen" style="width: 100%;" />
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button id="pinterest-save" class="btn btn-primary" style="flex: 1;">Connect Pins</button>
+            <button id="pinterest-cancel" class="btn" style="flex: 1;">Cancel</button>
+          </div>
+          <div id="pinterest-setup-status" class="status-text" style="margin-top: 8px;"></div>
+        </div>
+        
+        <!-- Pinterest Tags List -->
+        <div id="pinterest-tags-section" style="display: none; margin-top: 16px;">
+          <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Pinterest Tags</h4>
+          <div id="pinterest-tags-list"></div>
         </div>
         
         <!-- Hidden elements for compatibility -->
