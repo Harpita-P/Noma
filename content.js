@@ -76,6 +76,43 @@
     #tag-search-input::placeholder {
       color: rgba(128, 128, 128, 0.4);
     }
+
+    /* Floating Noma button for text selection */
+    #noma-floating-button {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: white;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      transition: transform 0.2s ease;
+    }
+    
+    #noma-floating-button:hover {
+      transform: scale(1.1);
+    }
+    
+    #noma-floating-button img {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      animation: noma-spin 2s linear infinite;
+    }
+    
+    @keyframes noma-spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
   `;
   document.head.appendChild(style);
 
@@ -848,14 +885,24 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     }
   }
 
-  function makeFinalPrompt({ contextText, userPrompt }) {
+  function makeFinalPrompt({ contextText, userPrompt, liveContextText }) {
     // Smart prompt preprocessing for conversational responses
     const processedPrompt = preprocessPrompt(userPrompt);
     
-    if (contextText) {
-      return `CONTEXT:\n${contextText}\n\nUSER PROMPT:\n${processedPrompt}`;
+    // Build prompt with live context, tag context, and user prompt
+    const parts = [];
+    
+    if (liveContextText) {
+      parts.push(`LIVE CONTEXT (Selected Text):\n${liveContextText}`);
     }
-    return processedPrompt;
+    
+    if (contextText) {
+      parts.push(`TAG CONTEXT:\n${contextText}`);
+    }
+    
+    parts.push(`USER PROMPT:\n${processedPrompt}`);
+    
+    return parts.join('\n\n');
   }
   
   function preprocessPrompt(userPrompt) {
@@ -939,6 +986,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
   let currentTagColors = [];
   let contextPreviewPanel = null;
   let excludedContexts = new Set(); // Track temporarily excluded contexts for current session
+  let liveContext = null; // Store temporarily captured text from selection
+  let floatingButton = null; // Floating Noma logo button for text selection
 
   function createTagDropdown() {
     const dropdown = document.createElement('div');
@@ -969,6 +1018,81 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     dropdown.updateTheme = updateDropdownTheme;
     document.body.appendChild(dropdown);
     return dropdown;
+  }
+
+  function createFloatingButton() {
+    const button = document.createElement('div');
+    button.id = 'noma-floating-button';
+    button.innerHTML = `<img src="${chrome.runtime.getURL('noma-logo.png')}" alt="Noma" />`;
+    button.style.display = 'none';
+    document.body.appendChild(button);
+    
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      captureLiveContext();
+    });
+    
+    return button;
+  }
+
+  function handleTextSelection(e) {
+    // Don't show button if clicking on the button itself or tag selector
+    if (e.target.closest('#noma-floating-button') || 
+        e.target.closest('#taggle-tag-selector') ||
+        e.target.closest('#taggle-context-preview')) {
+      return;
+    }
+
+    setTimeout(() => {
+      const selection = window.getSelection();
+      const selectedText = selection.toString().trim();
+      
+      if (selectedText && selectedText.length > 0) {
+        // Position button near the selection
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        
+        // Position button at top-right of selection
+        floatingButton.style.left = (rect.right + scrollLeft + 8) + 'px';
+        floatingButton.style.top = (rect.top + scrollTop - 8) + 'px';
+        floatingButton.style.display = 'flex';
+        
+        // Store the selected text temporarily for capture
+        floatingButton.dataset.selectedText = selectedText;
+      } else {
+        // Hide button if no selection
+        floatingButton.style.display = 'none';
+      }
+    }, 10);
+  }
+
+  function captureLiveContext() {
+    const selectedText = floatingButton.dataset.selectedText;
+    if (selectedText) {
+      liveContext = {
+        text: selectedText,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Hide the button
+      floatingButton.style.display = 'none';
+      
+      // Clear selection
+      window.getSelection().removeAllRanges();
+      
+      // Show confirmation toast
+      toast('Live Context captured! Use Ctrl+Q to select a tag.');
+      
+      console.log('Noma: Live Context captured:', liveContext);
+    }
+  }
+
+  function clearLiveContext() {
+    liveContext = null;
+    console.log('Noma: Live Context cleared');
   }
 
   function createContextPreviewPanel() {
@@ -1074,6 +1198,11 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     tagSelectorActive = true;
     excludedContexts.clear();
     console.log("Taggle: Starting new tag selector session, cleared excluded contexts");
+    
+    // Show live context indicator if active
+    if (liveContext) {
+      console.log('Taggle: Live Context is active:', liveContext.text.substring(0, 50) + '...');
+    }
     storedCaretPosition = getCaretPosition(element); // Store cursor position when selector opens
     
     console.log('Taggle: showTagSelector debug:', {
@@ -1239,6 +1368,32 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         gap: 12px;
         border-radius: 12px 12px 0 0;
       ">
+        ${liveContext ? `
+          <div style="
+            position: absolute;
+            top: 4px;
+            right: 16px;
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            border-radius: 8px;
+            padding: 2px 8px;
+            font-size: 9px;
+            font-weight: 600;
+            color: #a855f7;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          ">
+            <span style="
+              width: 6px;
+              height: 6px;
+              border-radius: 50%;
+              background: #a855f7;
+              animation: pulse 2s ease-in-out infinite;
+            "></span>
+            Live Context Active
+          </div>
+        ` : ''}
         <div style="display: flex; align-items: center; gap: 8px;">
           <img src="${chrome.runtime.getURL('noma-logo.png')}" style="
             width: 24px;
@@ -2467,6 +2622,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
             if (!window.taggleRAG.hasApiKey()) {
               console.warn("Taggle RAG: No API key available, falling back to full context");
               finalPromptText = makeFinalPrompt({
+                liveContextText: liveContext ? liveContext.text : null,
                 contextText: contextData.textBlob,
                 userPrompt: tagInfo.userPrompt
               });
@@ -2490,6 +2646,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
                 
                 // Use RAG results as context instead of full text
                 finalPromptText = makeFinalPrompt({
+                  liveContextText: liveContext ? liveContext.text : null,
                   contextText: relevantContext,
                   userPrompt: tagInfo.userPrompt
                 });
@@ -2497,6 +2654,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
                 console.log("Taggle RAG: No relevant chunks found, falling back to full context");
                 // Fallback to original context if no RAG results
                 finalPromptText = makeFinalPrompt({
+                  liveContextText: liveContext ? liveContext.text : null,
                   contextText: contextData.textBlob,
                   userPrompt: tagInfo.userPrompt
                 });
@@ -2505,6 +2663,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
               console.error("Taggle RAG: Search failed, falling back to full context:", ragError);
               // Fallback to original context if RAG fails
               finalPromptText = makeFinalPrompt({
+                liveContextText: liveContext ? liveContext.text : null,
                 contextText: contextData.textBlob,
                 userPrompt: tagInfo.userPrompt
               });
@@ -2513,6 +2672,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           } else {
             // Standard text-only prompt for smaller contexts
             finalPromptText = makeFinalPrompt({
+              liveContextText: liveContext ? liveContext.text : null,
               contextText: contextData.textBlob,
               userPrompt: tagInfo.userPrompt
             });
@@ -2528,6 +2688,15 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
 
     // Start spinner - if we have a tag, only spin from tag onwards
     const stopSpin = tagInfo ? startPartialSpinner(el, beforeTagText) : startSpinner(el);
+
+    // Clear live context now that we're submitting the prompt
+    const capturedLiveContext = liveContext ? liveContext.text : null;
+    clearLiveContext();
+    
+    // Log if live context was used
+    if (capturedLiveContext) {
+      console.log('Noma: Using Live Context in prompt:', capturedLiveContext.substring(0, 100) + '...');
+    }
 
     const ctrl = new AbortController();
     const onEsc = (ev) => { if (ev.key === "Escape") ctrl.abort(); };
@@ -2566,4 +2735,26 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       window.removeEventListener("keydown", onEsc);
     }
   }, true);
+
+  // === Initialize Live Context Feature ===
+  
+  // Initialize floating button for live context
+  floatingButton = createFloatingButton();
+
+  // Text selection handler for live context
+  document.addEventListener('mouseup', handleTextSelection);
+  document.addEventListener('touchend', handleTextSelection);
+
+  // Hide floating button when clicking elsewhere
+  document.addEventListener('mousedown', (e) => {
+    if (!e.target.closest('#noma-floating-button')) {
+      // Delay hiding to allow click to register
+      setTimeout(() => {
+        if (floatingButton && floatingButton.style.display !== 'none') {
+          floatingButton.style.display = 'none';
+        }
+      }, 100);
+    }
+  });
+
 })();
