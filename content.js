@@ -9,6 +9,9 @@
   // Inject CSS for light purple cursor and Noma logo glow animation
   const style = document.createElement('style');
   style.textContent = `
+    /* Import Ranade font from Fontshare */
+    @import url('https://api.fontshare.com/v2/css?f[]=ranade@400&display=swap');
+    
     /* Light purple cursor for input fields and contentEditable elements */
     input, textarea, [contenteditable="true"], [contenteditable] {
       caret-color: #c084fc !important;
@@ -24,37 +27,7 @@
       caret-color: #c084fc !important;
     }
 
-    /* Purple flowing light animation for Noma logo */
-    @keyframes noma-flow {
-      0% {
-        box-shadow: 
-          -2px 0 8px 2px rgba(168, 85, 247, 0.4),
-          0 0 4px rgba(168, 85, 247, 0.15);
-      }
-      25% {
-        box-shadow: 
-          0 -2px 8px 2px rgba(168, 85, 247, 0.4),
-          0 0 4px rgba(168, 85, 247, 0.15);
-      }
-      50% {
-        box-shadow: 
-          2px 0 8px 2px rgba(168, 85, 247, 0.4),
-          0 0 4px rgba(168, 85, 247, 0.15);
-      }
-      75% {
-        box-shadow: 
-          0 2px 8px 2px rgba(168, 85, 247, 0.4),
-          0 0 4px rgba(168, 85, 247, 0.15);
-      }
-      100% {
-        box-shadow: 
-          -2px 0 8px 2px rgba(168, 85, 247, 0.4),
-          0 0 4px rgba(168, 85, 247, 0.15);
-      }
-    }
-
     #noma-logo-button {
-      animation: noma-flow 2s linear infinite;
       border-radius: 35%;
       padding: 0;
       transform: none !important;
@@ -73,8 +46,12 @@
       border-color: rgba(128, 128, 128, 0.2) !important;
     }
     
+    :root {
+      --taggle-placeholder-color: rgba(128, 128, 128, 0.4);
+    }
+    
     #tag-search-input::placeholder {
-      color: rgba(128, 128, 128, 0.4);
+      color: var(--taggle-placeholder-color);
     }
   `;
   document.head.appendChild(style);
@@ -1231,7 +1208,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     tagDropdown.innerHTML = `
       <div style="
         padding: 10px 16px 8px 16px;
-        background: ${isDarkMode ? '#0a0a0a' : '#ffffff'};
+        background: transparent;
         border-bottom: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
         display: flex;
         align-items: center;
@@ -1239,7 +1216,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         gap: 12px;
         border-radius: 12px 12px 0 0;
       ">
-        <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 2px;">
           <img src="${chrome.runtime.getURL('noma-logo.png')}" style="
             width: 24px;
             height: 24px;
@@ -1248,10 +1225,11 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           " title="Open Noma (Alt+T)" id="noma-logo-button" />
           <span style="
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 400;
+            font-family: 'Ranade', sans-serif;
             color: ${isDarkMode ? '#ffffff' : '#000000'};
             opacity: 0.8;
-          ">Noma</span>
+          ">noma</span>
         </div>
         <div style="position: relative; display: inline-block;">
           <svg style="
@@ -2045,6 +2023,10 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
   }
 
   function getCaretPosition(element) {
+    if (!element) {
+      return 0;
+    }
+    
     if (element.selectionStart !== undefined) {
       return element.selectionStart;
     }
@@ -2306,11 +2288,19 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     }
   }
   
+  function updatePlaceholderColor() {
+    const placeholderColor = isDarkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(128, 128, 128, 0.4)';
+    document.documentElement.style.setProperty('--taggle-placeholder-color', placeholderColor);
+  }
+  
   function toggleTheme() {
     isDarkMode = !isDarkMode;
     console.log('Taggle: Theme toggled, isDarkMode:', isDarkMode);
     // Save preference to localStorage
     localStorage.setItem('taggle-dark-mode', isDarkMode.toString());
+    
+    // Update placeholder color
+    updatePlaceholderColor();
     
     // Update any visible dropdowns
     const dropdown = document.getElementById('taggle-tag-selector');
@@ -2321,7 +2311,10 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       }
       // Re-render the dropdown with new theme
       hideTagSelector();
-      setTimeout(() => showTagSelector(currentElement), 50);
+      // Only re-show if currentElement is still valid
+      if (currentElement && document.contains(currentElement)) {
+        setTimeout(() => showTagSelector(currentElement), 50);
+      }
     }
   }
   
@@ -2331,6 +2324,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     if (savedTheme === 'true') {
       isDarkMode = true;
     }
+    // Update placeholder color based on theme
+    updatePlaceholderColor();
   }
   
   // Initialize theme when content script loads
