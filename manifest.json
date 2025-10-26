@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Noma",
-  "version": "6.0.0",
+  "version": "8.5.0",
   "description": "Browser AI that lives in your cursor. With @tags, Noma sees all your connected context to make you productive.",
   "permissions": ["activeTab", "scripting", "contextMenus", "storage", "identity"],
+  "trial_tokens": [
+    "A9I0QGi0wmV/GYaFZACqp3yfDIET8zm4TQ8zvwMFgn0AsqVEc0yDqubR24k6kZ5vsrZgXYSAAszWFyy/9C8SdAcAAACPeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vam9lb2VvaWhoYWRrZm1nb2dtY2JraWlpZWlhYmNnYmoiLCJmZWF0dXJlIjoiQUlQcm9tcHRBUElNdWx0aW1vZGFsSW5wdXQiLCJleHBpcnkiOjE3NzQzMTA0MDAsImlzVGhpcmRQYXJ0eSI6dHJ1ZX0="
+  ],
   "oauth2": {
     "client_id": "713365663850-30s2icpvqori18a3k3ilru9mia53iacf.apps.googleusercontent.com",
     "scopes": [
@@ -41,13 +44,13 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js", "rag-system.js"],
+      "js": ["content.js", "rag-system.js", "audio-context-menu.js"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["lib/pdf.worker.min.js","lib/pdf.min.js","lib/pdf-loader.js","calendar-service-v3.js","calendar-sync.js","gc-logo.png","gmail-service.js","gmail-sync.js","email-logo.png","folder-watcher.js","rag-system.js","notion-service.js","notion-sync.js","not-logo.png","pinterest-service.js","pinterest-sync.js","pin-logo.png","noma-logo.png"],
+      "resources": ["lib/pdf.worker.min.js","lib/pdf.min.js","lib/pdf-loader.js","calendar-service-v3.js","calendar-sync.js","gc-logo.png","gmail-service.js","gmail-sync.js","email-logo.png","folder-watcher.js","rag-system.js","notion-service.js","notion-sync.js","not-logo.png","pinterest-service.js","pinterest-sync.js","pin-logo.png","audio-service.js","noma-logo.png"],
       "matches": ["<all_urls>"]
     }
   ]

@@ -624,7 +624,7 @@
                 <input id="openai-key" type="password" placeholder="Enter OpenAI API key (sk-...)" style="flex: 1;" />
                 <button id="save-openai-key" class="btn">Save Key</button>
               </div>
-              <div id="openai-key-status" class="status-text">Required for semantic search on large contexts (25k+ chars)</div>
+              <div id="openai-key-status" class="status-text">Required for semantic search (25k+ chars) & audio transcription</div>
             </div>
 
             <div class="form-group">
@@ -649,6 +649,21 @@
                 <button id="upload-pdf" class="btn btn-primary" disabled style="padding: 6px 12px; min-width: 80px; align-self: flex-start;">Upload</button>
               </div>
               <div id="upload-status" class="status-text"></div>
+            </div>
+
+            <!-- Audio Upload Section -->
+            <div class="form-group">
+              <div class="section-header">
+                <h3 class="section-title">🎙️ Transcribe Audio</h3>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <input id="audio-file" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.mp4,.mpeg,.mpga" />
+                <select id="audio-tag-select">
+                  <option value="">Select tag...</option>
+                </select>
+                <button id="upload-audio" class="btn btn-primary" disabled style="padding: 6px 12px; min-width: 80px; align-self: flex-start;">Transcribe & Save</button>
+              </div>
+              <div id="audio-upload-status" class="status-text"></div>
             </div>
           </div>
 
