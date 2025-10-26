@@ -166,6 +166,20 @@ export async function addContext(tagId, contextData) {
       title: contextData.title || "", 
       createdAt: nowISO() 
     };
+  } else if (contextData.type === "audio") {
+    item = { 
+      id: id12(), 
+      type: "audio",
+      audioUrl: contextData.audioUrl,
+      transcription: contextData.transcription || "",
+      audioData: contextData.audioData,
+      mimeType: contextData.mimeType,
+      size: contextData.size,
+      transcriptionError: contextData.transcriptionError,
+      url: contextData.url || "", 
+      title: contextData.title || "", 
+      createdAt: nowISO() 
+    };
   } else {
     // Default to text context for backward compatibility
     item = { 
@@ -212,6 +226,7 @@ export async function getContextTypeCounts(tagId) {
       text: 0,
       pdf: 0,
       image: 0,
+      audio: 0,
       calendar: 0,
       email: 0,
       notion: 0,
@@ -222,6 +237,8 @@ export async function getContextTypeCounts(tagId) {
     contexts.forEach(ctx => {
       if (ctx.type === "image") {
         counts.image++;
+      } else if (ctx.type === "audio") {
+        counts.audio++;
       } else if (ctx.type === "calendar") {
         counts.calendar++;
       } else if (ctx.type === "email") {
@@ -243,7 +260,7 @@ export async function getContextTypeCounts(tagId) {
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
       console.log("Taggle: Extension context invalidated, returning empty counts");
-      return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, notion: 0, pinterest: 0, total: 0 };
+      return { text: 0, pdf: 0, image: 0, audio: 0, calendar: 0, email: 0, notion: 0, pinterest: 0, total: 0 };
     }
     throw error;
   }

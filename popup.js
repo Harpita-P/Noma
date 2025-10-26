@@ -14,6 +14,11 @@ const els = {
   pdfTagSelect: document.getElementById("pdf-tag-select"),
   uploadPdf: document.getElementById("upload-pdf"),
   uploadStatus: document.getElementById("upload-status"),
+  // Audio elements
+  audioFile: document.getElementById("audio-file"),
+  audioTagSelect: document.getElementById("audio-tag-select"),
+  uploadAudio: document.getElementById("upload-audio"),
+  audioUploadStatus: document.getElementById("audio-upload-status"),
   // Calendar elements
   calendarClientId: document.getElementById("calendar-client-id"),
   calendarSaveSettings: document.getElementById("calendar-save-settings"),
@@ -77,6 +82,10 @@ els.refresh.onclick = render;
 els.pdfFile.onchange = onPdfFileChange;
 els.pdfTagSelect.onchange = onPdfTagChange;
 els.uploadPdf.onclick = onUploadPdf;
+// Audio event handlers
+els.audioFile.onchange = onAudioFileChange;
+els.audioTagSelect.onchange = onAudioTagChange;
+els.uploadAudio.onclick = onUploadAudio;
 // Calendar event handlers
 els.calendarSaveSettings.onclick = onCalendarSaveSettings;
 els.calendarSignin.onclick = onCalendarSignin;
@@ -231,15 +240,18 @@ async function onSaveOpenAIKey() {
     els.saveOpenaiKey.disabled = true;
     els.openaiKeyStatus.textContent = 'Saving...';
     
-    // Save to storage
-    await chrome.storage.local.set({ 'noma-openai-key': apiKey });
+    // Save to storage (for both RAG and Whisper)
+    await chrome.storage.local.set({ 
+      'noma-openai-key': apiKey,
+      'whisperApiKey': apiKey  // Also save for Whisper transcription
+    });
     
     // Update RAG system if initialized
     if (ragSystem) {
       await ragSystem.setOpenAIKey(apiKey);
     }
     
-    els.openaiKeyStatus.textContent = '✓ API key saved successfully';
+    els.openaiKeyStatus.textContent = '✓ API key saved (for semantic search & audio transcription)';
     els.openaiKey.value = ''; // Clear the input for security
     
     // Update status to show configured state
@@ -379,6 +391,7 @@ function updatePdfTagSelector(tags) {
     options.push(`<option value="${tag.id}">@${tag.name}</option>`);
   });
   els.pdfTagSelect.innerHTML = options.join('');
+  els.audioTagSelect.innerHTML = options.join(''); // Also populate audio select
 }
 
 // Handle PDF file selection
@@ -1794,6 +1807,84 @@ async function waitForPinterestService() {
     throw new Error('Pinterest service not loaded. Please refresh and try again.');
   }
   return window.PinterestService;
+}
+
+// Audio upload handlers
+function onAudioFileChange() {
+  els.uploadAudio.disabled = !els.audioFile.files.length || !els.audioTagSelect.value;
+}
+
+function onAudioTagChange() {
+  els.uploadAudio.disabled = !els.audioFile.files.length || !els.audioTagSelect.value;
+}
+
+async function onUploadAudio() {
+  const file = els.audioFile.files[0];
+  const tagId = els.audioTagSelect.value;
+  
+  if (!file || !tagId) return;
+  
+  try {
+    els.uploadAudio.disabled = true;
+    els.audioUploadStatus.textContent = '🎙️ Transcribing audio...';
+    els.audioUploadStatus.style.color = '#3b82f6';
+    
+    // Load audio service
+    if (typeof AudioService === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL('audio-service.js');
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+    
+    // Transcribe the audio file
+    const transcription = await AudioService.transcribeAudio(file);
+    
+    // Convert to base64 for storage
+    const audioData = await AudioService.blobToBase64(file);
+    
+    // Create context
+    const context = {
+      type: 'audio',
+      text: transcription,
+      transcription: transcription,
+      audioData: audioData,
+      filename: file.name,
+      mimeType: file.type,
+      size: file.size,
+      timestamp: Date.now()
+    };
+    
+    console.log('Audio upload: Saving context:', context);
+    console.log('Audio upload: Tag ID:', tagId);
+    
+    // Save to tag
+    await addContext(tagId, context);
+    
+    console.log('Audio upload: Context saved successfully');
+    
+    // Verify it was saved
+    const contexts = await getContexts(tagId);
+    console.log('Audio upload: Contexts in tag:', contexts);
+    
+    els.audioUploadStatus.textContent = '✅ Audio transcribed and saved!';
+    els.audioUploadStatus.style.color = '#10b981';
+    els.audioFile.value = '';
+    els.uploadAudio.disabled = true;
+    
+    // Refresh the tag list
+    await render();
+    
+  } catch (error) {
+    console.error('Audio upload error:', error);
+    els.audioUploadStatus.textContent = `❌ ${error.message}`;
+    els.audioUploadStatus.style.color = '#ef4444';
+  } finally {
+    els.uploadAudio.disabled = false;
+  }
 }
 
 async function waitForPinterestSync() {

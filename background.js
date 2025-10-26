@@ -30,6 +30,12 @@ chrome.runtime.onInstalled.addListener(async () => {
       contexts: ["image"]
     });
     
+    chrome.contextMenus.create({
+      id: "noma-save-audio",
+      title: "Transcribe audio to @tag",
+      contexts: ["audio", "video", "link"]
+    });
+    
     console.log("Noma: Context menus created successfully");
   } catch (error) {
     console.error("Noma: Error creating context menus:", error);
@@ -222,6 +228,59 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           title: tab.title || ""
         };
       }
+    } else if (info.menuItemId === "noma-save-audio") {
+      // First, try to get audio context from the content script
+      const audioContext = await chrome.storage.local.get('noma-audio-context');
+      let audioUrl = null;
+      
+      if (audioContext['noma-audio-context']) {
+        const context = audioContext['noma-audio-context'];
+        // Check if context is recent (within last 2 seconds)
+        if (Date.now() - context.timestamp < 2000) {
+          audioUrl = context.audioUrl;
+          console.log('Noma: Using audio URL from content script:', audioUrl);
+        }
+      }
+      
+      // Fallback to srcUrl or linkUrl
+      if (!audioUrl) {
+        audioUrl = info.srcUrl || info.linkUrl || "";
+      }
+      
+      if (!audioUrl) {
+        console.log("Noma: No audio URL found");
+        return;
+      }
+      
+      // Check if it's actually an audio file
+      const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.wma', '.opus', '.webm'];
+      const isAudioFile = audioExtensions.some(ext => audioUrl.toLowerCase().includes(ext));
+      
+      // Gmail attachments use special URLs with view=att parameter
+      const isGmailAttachment = audioUrl.includes('mail.google.com') && 
+                                (audioUrl.includes('view=att') || audioUrl.includes('&attid='));
+      
+      // For links, only proceed if it's an audio file OR a Gmail attachment
+      // (Gmail attachments are validated by the content script based on filename)
+      if (info.linkUrl && !isAudioFile && !isGmailAttachment) {
+        console.log("Noma: Link is not an audio file, skipping");
+        return;
+      }
+      
+      console.log("Noma: Audio context menu clicked, audio URL:", audioUrl);
+      
+      // Store audio URL and mark as pending transcription
+      // The picker will handle the actual transcription using the Prompt API
+      contextData = {
+        type: "audio",
+        audioUrl: audioUrl,
+        url: tab.url || "",
+        title: tab.title || "",
+        pendingTranscription: true
+      };
+      
+      // Clean up the audio context
+      await chrome.storage.local.remove('noma-audio-context');
     } else {
       return;
     }

@@ -15,6 +15,8 @@ const els = {
   cancelBtn: document.getElementById("cancel"),
   openOptions: document.getElementById("open-options"),
   closeBtn: document.getElementById("close"),
+  transcriptionStatus: document.getElementById("transcription-status"),
+  transcriptionMessage: document.getElementById("transcription-message"),
 };
 
 init();
@@ -46,6 +48,7 @@ async function init() {
           if (counts.text > 0) indicators.push(`📄${counts.text}`);
           if (counts.pdf > 0) indicators.push(`📕${counts.pdf}`);
           if (counts.image > 0) indicators.push(`🖼️${counts.image}`);
+          if (counts.audio > 0) indicators.push(`🎙️${counts.audio}`);
           if (counts.calendar > 0) indicators.push(`📅${counts.calendar}`);
           if (counts.email > 0) indicators.push(`📧${counts.email}`);
         }
@@ -112,8 +115,89 @@ async function onSave() {
     if (!channel) return window.close();
     
     const storageObj = await chrome.storage.local.get(channel);
-    const payload = storageObj[channel];
+    let payload = storageObj[channel];
     if (!payload) return window.close();
+
+    // Handle audio transcription if needed
+    if (payload.type === "audio" && payload.pendingTranscription) {
+      els.transcriptionStatus.style.display = "";
+      els.transcriptionMessage.textContent = "🎙️ Transcribing audio...";
+      els.saveBtn.disabled = true;
+      
+      try {
+        // Load audio service if not already loaded
+        if (typeof AudioService === 'undefined') {
+          console.log('Picker: Loading audio service...');
+          // Load the script synchronously
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = chrome.runtime.getURL('audio-service.js');
+            script.onload = () => {
+              console.log('Picker: Audio service loaded');
+              resolve();
+            };
+            script.onerror = (e) => {
+              console.error('Picker: Failed to load audio service', e);
+              reject(new Error('Failed to load audio service'));
+            };
+            document.head.appendChild(script);
+          });
+        }
+        
+        console.log('Picker: Starting transcription...');
+        
+        // Wrap transcription in another try-catch to catch crashes
+        let result;
+        try {
+          result = await AudioService.transcribeFromUrl(payload.audioUrl);
+        } catch (transcribeError) {
+          console.error('Picker: Transcription failed:', transcribeError);
+          throw new Error(`Transcription failed: ${transcribeError.message || 'Unknown error'}`);
+        }
+        
+        console.log('Picker: Transcription successful');
+        console.log('Picker: Transcription result:', result);
+        
+        // Update payload with transcription - match the popup format
+        payload = {
+          type: 'audio',
+          transcription: result.transcription,
+          audioData: result.audioData,
+          filename: payload.filename || 'audio.m4a',
+          mimeType: result.mimeType,
+          size: result.size,
+          audioUrl: payload.audioUrl,
+          url: payload.audioUrl || '',
+          title: payload.filename || '',
+          pendingTranscription: false
+        };
+        
+        console.log('Picker: Updated payload:', payload);
+        
+        els.transcriptionMessage.textContent = "✅ Transcription complete!";
+        els.saveBtn.disabled = false;
+        
+      } catch (error) {
+        console.error("Picker: Transcription error:", error);
+        console.error("Picker: Error stack:", error.stack);
+        
+        // Show user-friendly error message
+        const errorMsg = error.message.includes('not yet available') || error.message.includes('not yet supported')
+          ? '⚠️ Audio transcription not yet available. Saving audio file only.'
+          : `❌ ${error.message || 'Transcription failed'}`;
+        
+        els.transcriptionMessage.textContent = errorMsg;
+        els.transcriptionMessage.style.color = '#ff6b6b';
+        els.saveBtn.disabled = false;
+        
+        // Allow saving without transcription
+        payload.transcription = ''; // Empty transcription
+        payload.transcriptionError = error.message || 'Unknown error';
+        payload.pendingTranscription = false;
+        
+        // Note: Audio URL is still saved so user can access the file
+      }
+    }
 
     let tagId = els.tagSelect.value;
 
