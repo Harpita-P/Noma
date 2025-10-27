@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Noma",
-  "version": "8.5.0",
+  "version": "1.0.0",
   "description": "Browser AI that lives in your cursor. With @tags, Noma sees all your connected context to make you productive.",
   "permissions": ["activeTab", "scripting", "contextMenus", "storage", "identity"],
   "trial_tokens": [
@@ -21,23 +21,30 @@
   "action": {
     "default_title": "Noma",
     "default_icon": {
-      "16": "noma-logo.png",
-      "48": "noma-logo.png",
-      "128": "noma-logo.png"
+      "16": "Images/noma-logo.png",
+      "48": "Images/noma-logo.png",
+      "128": "Images/noma-logo.png"
     }
   },
   "icons": {
-    "16": "noma-logo.png",
-    "48": "noma-logo.png",
-    "128": "noma-logo.png"
+    "16": "Images/noma-logo.png",
+    "48": "Images/noma-logo.png",
+    "128": "Images/noma-logo.png"
   },
   "commands": {
-    "_execute_action": {
+    "open-tag-selector": {
       "suggested_key": {
-        "default": "Alt+T",
-        "mac": "Alt+T"
+        "default": "Ctrl+Q",
+        "mac": "Ctrl+Q"
       },
-      "description": "Open Noma popup"
+      "description": "Open tag selector"
+    },
+    "send-to-gemini": {
+      "suggested_key": {
+        "default": "Ctrl+Space",
+        "mac": "Ctrl+Space"
+      },
+      "description": "Send prompt with context to Gemini Nano"
     }
   },
   "host_permissions": ["<all_urls>"],
@@ -50,7 +57,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["lib/pdf.worker.min.js","lib/pdf.min.js","lib/pdf-loader.js","calendar-service-v3.js","calendar-sync.js","gc-logo.png","gmail-service.js","gmail-sync.js","email-logo.png","folder-watcher.js","rag-system.js","notion-service.js","notion-sync.js","not-logo.png","pinterest-service.js","pinterest-sync.js","pin-logo.png","audio-service.js","noma-logo.png"],
+      "resources": ["lib/pdf.worker.min.js","lib/pdf.min.js","lib/pdf-loader.js","calendar-service-v3.js","calendar-sync.js","Images/gc-logo.png","gmail-service.js","gmail-sync.js","Images/email-logo.png","folder-watcher.js","rag-system.js","notion-service.js","notion-sync.js","Images/not-logo.png","pinterest-service.js","pinterest-sync.js","Images/pin-logo.png","audio-service.js","Images/audio-logo.png","Images/noma-logo.png","Images/git-logo.png"],
       "matches": ["<all_urls>"]
     }
   ]

@@ -681,6 +681,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         calendar: 0,
         email: 0,
         notion: 0,
+        audio: 0,
         total: contexts.length
       };
       
@@ -693,6 +694,8 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           counts.email++;
         } else if (ctx.type === "notion") {
           counts.notion++;
+        } else if (ctx.type === "audio") {
+          counts.audio++;
         } else if (ctx.type === "text") {
           if (ctx.source === "pdf-upload" || (ctx.title && ctx.title.startsWith("PDF:"))) {
             counts.pdf++;
@@ -706,7 +709,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     } catch (error) {
       if (error.message.includes('Extension context invalidated')) {
         console.log("Taggle: Extension context invalidated, returning empty counts");
-        return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, notion: 0, total: 0 };
+        return { text: 0, pdf: 0, image: 0, calendar: 0, email: 0, notion: 0, audio: 0, total: 0 };
       }
       throw error;
     }
@@ -1045,7 +1048,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
     const button = document.createElement('div');
     button.id = 'noma-floating-button';
     button.title = 'Send to Noma';
-    button.innerHTML = `<img src="${chrome.runtime.getURL('noma-logo.png')}" alt="Noma" />`;
+    button.innerHTML = `<img src="${chrome.runtime.getURL('Images/noma-logo.png')}" alt="Noma" />`;
     button.style.display = 'none';
     document.body.appendChild(button);
     
@@ -1271,7 +1274,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
       
       if (isCalendarTag) {
         // Calendar icon as tilted tile for dynamic tags
-        indicators.push(`<img src="${chrome.runtime.getURL('gc-logo.png')}" style="
+        indicators.push(`<img src="${chrome.runtime.getURL('Images/gc-logo.png')}" style="
           width: 14px;
           height: 14px;
           margin-right: 3px;
@@ -1281,7 +1284,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         " title="Google Calendar Tag" />`);
       } else if (isGmailTag) {
         // Gmail icon as tilted tile for dynamic tags
-        indicators.push(`<img src="${chrome.runtime.getURL('email-logo.png')}" style="
+        indicators.push(`<img src="${chrome.runtime.getURL('Images/email-logo.png')}" style="
           width: 14px;
           height: 14px;
           margin-right: 3px;
@@ -1291,7 +1294,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         " title="Gmail Tag" />`);
       } else if (isNotionTag) {
         // Notion icon as tilted tile for dynamic tags
-        indicators.push(`<img src="${chrome.runtime.getURL('not-logo.png')}" style="
+        indicators.push(`<img src="${chrome.runtime.getURL('Images/not-logo.png')}" style="
           width: 14px;
           height: 14px;
           margin-right: 3px;
@@ -1301,7 +1304,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         " title="Notion Tag" />`);
       } else if (isPinterestTag) {
         // Pinterest icon as tilted tile for dynamic tags
-        indicators.push(`<img src="${chrome.runtime.getURL('pin-logo.png')}" style="
+        indicators.push(`<img src="${chrome.runtime.getURL('Images/pin-logo.png')}" style="
           width: 14px;
           height: 14px;
           margin-right: 3px;
@@ -1346,6 +1349,16 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
             margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
           " title="Email: ${counts.email}">${counts.email}</span>`);
         }
+        if (counts.audio > 0) {
+          indicators.push(`<img src="${chrome.runtime.getURL('Images/audio-logo.png')}" style="
+            width: 14px;
+            height: 14px;
+            margin-right: 3px;
+            border-radius: 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+          " title="Audio: ${counts.audio}" />`);
+        }
       }
       
       const theme = getThemeStyles();
@@ -1387,7 +1400,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
         border-radius: 12px 12px 0 0;
       ">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <img src="${chrome.runtime.getURL('noma-logo.png')}" style="
+          <img src="${chrome.runtime.getURL('Images/noma-logo.png')}" style="
             width: 28px;
             height: 28px;
             object-fit: contain;
@@ -1672,7 +1685,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           gap: 8px;
           margin-bottom: 8px;
         ">
-          <img src="${chrome.runtime.getURL('gc-logo.png')}" style="
+          <img src="${chrome.runtime.getURL('Images/gc-logo.png')}" style="
             width: 16px;
             height: 16px;
             border-radius: 2px;
@@ -1698,7 +1711,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           gap: 8px;
           margin-bottom: 8px;
         ">
-          <img src="${chrome.runtime.getURL('email-logo.png')}" style="
+          <img src="${chrome.runtime.getURL('Images/email-logo.png')}" style="
             width: 16px;
             height: 16px;
             border-radius: 2px;
@@ -1724,7 +1737,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           gap: 8px;
           margin-bottom: 8px;
         ">
-          <img src="${chrome.runtime.getURL('not-logo.png')}" style="
+          <img src="${chrome.runtime.getURL('Images/not-logo.png')}" style="
             width: 16px;
             height: 16px;
             border-radius: 2px;
@@ -1750,7 +1763,7 @@ async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
           gap: 8px;
           margin-bottom: 8px;
         ">
-          <img src="${chrome.runtime.getURL('pin-logo.png')}" style="
+          <img src="${chrome.runtime.getURL('Images/pin-logo.png')}" style="
             width: 16px;
             height: 16px;
             border-radius: 2px;

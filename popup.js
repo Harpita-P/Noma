@@ -345,13 +345,19 @@ async function render() {
       return sum + (c.text || c.selection || '').length;
     }, 0);
     
+    // Check if tag has audio contexts
+    const hasAudio = ctx.some(c => c.type === 'audio');
+    
     parts.push(`
       <div class="tag-item">
         <div class="tag-header">
-          <div>
-            <span class="tag-name">@${t.name}</span>
-            <span class="tag-count">${ctx.length} context${ctx.length !== 1 ? 's' : ''}</span>
-            ${totalTextLength > 25000 ? `<div style="font-size: 10px; color: #6b7280; margin-top: 2px;">${Math.round(totalTextLength/1000)}k chars</div>` : ''}
+          <div style="display: flex; align-items: center; gap: 6px;">
+            ${hasAudio ? '<img src="Images/audio-logo.png" alt="Audio" style="width: 14px; height: 14px;" />' : ''}
+            <div>
+              <span class="tag-name">@${t.name}</span>
+              <span class="tag-count">${ctx.length} context${ctx.length !== 1 ? 's' : ''}</span>
+              ${totalTextLength > 25000 ? `<div style="font-size: 10px; color: #6b7280; margin-top: 2px;">${Math.round(totalTextLength/1000)}k chars</div>` : ''}
+            </div>
           </div>
           <button data-del="${t.id}" class="btn btn-small">Delete</button>
         </div>
@@ -361,6 +367,8 @@ async function render() {
             <div>
               ${c.type === 'image' ? 
                 `<strong>Image:</strong> ${(c.imageUrl || 'Uploaded image').substring(0, 30)}...` :
+                c.type === 'audio' ?
+                `<strong>🎙️ Audio:</strong> ${escapeHtml((c.transcription || 'Transcribed audio').substring(0, 100) + (c.transcription && c.transcription.length > 100 ? '...' : ''))}` :
                 escapeHtml((c.text || c.selection || '').substring(0, 120) + (c.text && c.text.length > 120 ? '...' : ''))
               }
             </div>
@@ -385,11 +393,16 @@ async function render() {
 }
 
 // Update PDF tag selector dropdown
-function updatePdfTagSelector(tags) {
+async function updatePdfTagSelector(tags) {
   const options = ['<option value="">Select tag...</option>'];
-  tags.forEach(tag => {
-    options.push(`<option value="${tag.id}">@${tag.name}</option>`);
-  });
+  
+  for (const tag of tags) {
+    const ctx = await getContexts(tag.id);
+    const hasAudio = ctx.some(c => c.type === 'audio');
+    const audioIcon = hasAudio ? '🎙️ ' : '';
+    options.push(`<option value="${tag.id}">${audioIcon}@${tag.name}</option>`);
+  }
+  
   els.pdfTagSelect.innerHTML = options.join('');
   els.audioTagSelect.innerHTML = options.join(''); // Also populate audio select
 }
