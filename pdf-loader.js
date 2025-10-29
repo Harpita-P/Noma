@@ -1,1 +1,5 @@
-import * as pdfjsLib from './pdf.min.js';pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('lib/pdf.worker.min.js');window.pdfjsLib = pdfjsLib;window.dispatchEvent(new Event('pdfjs-ready'));console.log("Noma: PDF.js module loaded and configured");
+import * as pdfjsLib from './pdf.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('lib/pdf.worker.min.js');
+window.pdfjsLib = pdfjsLib;
+window.dispatchEvent(new Event('pdfjs-ready'));
+console.log("Noma: PDF.js module loaded and configured");

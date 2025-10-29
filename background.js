@@ -1,3 +1,267 @@
-console.log("Noma: Background script loaded");importScripts('calendar-service-v3.js', 'calendar-sync.js', 'gmail-service.js', 'gmail-sync.js');chrome.runtime.onStartup.addListener(async () => {  console.log("Noma: Extension startup - initializing services");  await initializeAutoSync();});chrome.runtime.onInstalled.addListener(async () => {  console.log("Noma: Extension installed - initializing services");  try {    chrome.contextMenus.create({      id: "noma-save-selection",      title: "Save text to tag…",      contexts: ["selection"]    });    chrome.contextMenus.create({      id: "noma-save-image",      title: "Save image to tag…",      contexts: ["image"]    });    chrome.contextMenus.create({      id: "noma-save-audio",      title: "Transcribe audio to @tag",      contexts: ["audio", "video", "link"]    });    console.log("Noma: Context menus created successfully");  } catch (error) {    console.error("Noma: Error creating context menus:", error);  }  await initializeAutoSync();});async function initializeAutoSync() {  try {    const { 'noma-calendar-settings': settings = {} } =       await chrome.storage.local.get('noma-calendar-settings');    if (settings.clientId) {      console.log("Noma: Initializing services in background");      await CalendarService.initialize(settings.clientId);      await GmailService.initialize(settings.clientId);      const { 'noma-calendar-tags': calendarTags = {}, 'noma-gmail-tags': gmailTags = {} } =         await chrome.storage.local.get(['noma-calendar-tags', 'noma-gmail-tags']);      if (Object.keys(calendarTags).length > 0 || Object.keys(gmailTags).length > 0) {        console.log("Noma: Starting background auto-sync");        startBackgroundAutoSync();      }    }  } catch (error) {    console.warn("Noma: Could not initialize auto-sync:", error);  }}let backgroundSyncTimer = null;function startBackgroundAutoSync() {  if (backgroundSyncTimer) {    clearInterval(backgroundSyncTimer);  }  backgroundSyncTimer = setInterval(async () => {    try {      console.log("Noma: Background auto-sync running...");      const { 'noma-calendar-settings': settings = {}, 'noma-calendar-tags': calendarTags = {}, 'noma-gmail-tags': gmailTags = {} } =         await chrome.storage.local.get(['noma-calendar-settings', 'noma-calendar-tags', 'noma-gmail-tags']);      if (settings.clientId && (Object.keys(calendarTags).length > 0 || Object.keys(gmailTags).length > 0)) {        if (!CalendarService.isInitialized) {          await CalendarService.initialize(settings.clientId);        }        if (!GmailService.isInitialized) {          await GmailService.initialize(settings.clientId);        }        if (!CalendarService.isSignedIn() || !GmailService.isSignedIn()) {          try {            const token = await chrome.identity.getAuthToken({ interactive: false });            if (token) {              const accessToken = typeof token === 'object' && token.token ? token.token : token;              if (!CalendarService.isSignedIn()) {                CalendarService.accessToken = accessToken;              }              if (!GmailService.isSignedIn()) {                GmailService.accessToken = accessToken;              }              console.log("Noma: Background auth successful");            }          } catch (authError) {            console.log("Noma: Background auth failed (user needs to sign in manually)");            return;          }        }        if (Object.keys(calendarTags).length > 0 && CalendarService.isSignedIn()) {          await CalendarSync.syncAllCalendarTags();        }        if (Object.keys(gmailTags).length > 0 && GmailService.isSignedIn()) {          await GmailSync.syncAllGmailTags();        }      }    } catch (error) {      console.warn("Noma: Background sync error:", error);    }  }, 15 * 60 * 1000); 
-  console.log("Noma: Background auto-sync timer started (15 min interval)");}chrome.action.onClicked.addListener(async () => {  await openNomaWindow();});chrome.commands.onCommand.addListener(async (command) => {  if (command === "_execute_action") {    await openNomaWindow();  }});async function openNomaWindow() {  try {    const existingWindows = await chrome.windows.getAll();    const taggleWindow = existingWindows.find(w => w.type === 'popup' && w.state === 'maximized');    if (taggleWindow) {      await chrome.windows.update(taggleWindow.id, { focused: true });      return;    }    const currentWindow = await chrome.windows.getCurrent();    const newWindow = await chrome.windows.create({      url: chrome.runtime.getURL('popup.html'),      type: 'popup',      state: 'maximized',      focused: true    });    console.log("Noma: Opened fullscreen window:", newWindow.id);  } catch (error) {    console.error("Noma: Error opening window:", error);  }}chrome.contextMenus.onClicked.addListener(async (info, tab) => {  try {    if (!tab || !tab.id) return;    let contextData = {};    if (info.menuItemId === "noma-save-selection") {      const selectedText = info.selectionText || "";      if (!selectedText.trim()) return;      console.log("Noma: Text context menu clicked, selected text:", selectedText.substring(0, 50) + "...");      contextData = {         type: "text",        selection: selectedText,         url: tab.url || "",         title: tab.title || ""       };    } else if (info.menuItemId === "noma-save-image") {      const imageUrl = info.srcUrl || "";      if (!imageUrl) return;      console.log("Noma: Image context menu clicked, image URL:", imageUrl);      try {        const response = await fetch(imageUrl);        const blob = await response.blob();        const base64 = await blobToBase64(blob);        contextData = {          type: "image",          imageUrl: imageUrl,          imageData: base64,          mimeType: blob.type,          url: tab.url || "",          title: tab.title || ""        };      } catch (fetchError) {        console.error("Noma: Error fetching image:", fetchError);        contextData = {          type: "image",          imageUrl: imageUrl,          url: tab.url || "",          title: tab.title || ""        };      }    } else if (info.menuItemId === "noma-save-audio") {      const audioContext = await chrome.storage.local.get('noma-audio-context');      let audioUrl = null;      if (audioContext['noma-audio-context']) {        const context = audioContext['noma-audio-context'];        if (Date.now() - context.timestamp < 2000) {          audioUrl = context.audioUrl;          console.log('Noma: Using audio URL from content script:', audioUrl);        }      }      if (!audioUrl) {        audioUrl = info.srcUrl || info.linkUrl || "";      }      if (!audioUrl) {        console.log("Noma: No audio URL found");        return;      }      const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.wma', '.opus', '.webm'];      const isAudioFile = audioExtensions.some(ext => audioUrl.toLowerCase().includes(ext));      const isGmailAttachment = audioUrl.includes('mail.google.com') &&                                 (audioUrl.includes('view=att') || audioUrl.includes('&attid='));      if (info.linkUrl && !isAudioFile && !isGmailAttachment) {        console.log("Noma: Link is not an audio file, skipping");        return;      }      console.log("Noma: Audio context menu clicked, audio URL:", audioUrl);      contextData = {        type: "audio",        audioUrl: audioUrl,        url: tab.url || "",        title: tab.title || "",        pendingTranscription: true      };      await chrome.storage.local.remove('noma-audio-context');    } else {      return;    }    const channel = `noma-picker-${Date.now()}`;    await chrome.storage.local.set({ [channel]: contextData });    console.log("Noma: Data stored with channel:", channel);    const window = await chrome.windows.create({      url: chrome.runtime.getURL(`picker.html?ch=${encodeURIComponent(channel)}`),      type: "popup",      width: 420,      height: 520    });    console.log("Noma: Picker window created:", window.id);  } catch (error) {    console.error("Noma: Error in context menu handler:", error);  }});function blobToBase64(blob) {  return new Promise((resolve, reject) => {    const reader = new FileReader();    reader.onload = () => resolve(reader.result);    reader.onerror = reject;    reader.readAsDataURL(blob);  });}chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {  if (message.action === 'openPopup') {    openNomaWindow();    sendResponse({ success: true });  }  return true; 
+console.log("Noma: Background script loaded");
+importScripts('calendar-service-v3.js', 'calendar-sync.js',
+'gmail-service.js',
+'gmail-sync.js');
+chrome.runtime.onStartup.addListener(async () => {
+      console.log("Noma: Extension startup - initializing services");
+      await initializeAutoSync();
+});
+chrome.runtime.onInstalled.addListener(async () => {
+      console.log("Noma: Extension installed - initializing services");
+      try {
+            chrome.contextMenus.create({
+                  id: "noma-save-selection", title: "Save text to tag…",
+              contexts: ["selection"]
+    });
+            chrome.contextMenus.create({
+                  id: "noma-save-image",
+              title: "Save image to tag…",
+              contexts: ["image"]
+    });
+            chrome.contextMenus.create({
+                  id: "noma-save-audio",
+              title: "Transcribe audio to @tag",
+              contexts: ["audio",
+      "video",
+      "link"]
+    });
+            console.log("Noma: Context menus created successfully");
+  }
+    catch (error) {
+            console.error("Noma: Error creating context menus:", error);
+  }
+      await initializeAutoSync();
+});
+async function initializeAutoSync() {
+      try {
+            const { 'noma-calendar-settings': settings = {} } = await chrome.storage.local.get('noma-calendar-settings');
+            if (settings.clientId) {
+                  console.log("Noma: Initializing services in background");
+                  await CalendarService.initialize(settings.clientId);
+                  await GmailService.initialize(settings.clientId);
+                  const storageData = await chrome.storage.local.get(['noma-calendar-tags', 'noma-gmail-tags']);
+                  const calendarTags = storageData['noma-calendar-tags'] || {};
+                  const gmailTags = storageData['noma-gmail-tags'] || {};
+                  if (Object.keys(calendarTags).length > 0 || Object.keys(gmailTags).length > 0) {
+                        console.log("Noma: Starting background auto-sync");
+                        startBackgroundAutoSync();
+      }
+    }
+  }
+    catch (error) {
+            console.warn("Noma: Could not initialize auto-sync:", error);
+  }
+}
+let backgroundSyncTimer = null;
+function startBackgroundAutoSync() {
+      if (backgroundSyncTimer) {
+            clearInterval(backgroundSyncTimer);
+  }
+      backgroundSyncTimer = setInterval(async () => {
+            try {
+                  console.log("Noma: Background auto-sync running...");
+                  const storageData = await chrome.storage.local.get(['noma-calendar-settings', 'noma-calendar-tags', 'noma-gmail-tags']);
+                  const settings = storageData['noma-calendar-settings'] || {};
+                  const calendarTags = storageData['noma-calendar-tags'] || {};
+                  const gmailTags = storageData['noma-gmail-tags'] || {};
+                  if (settings.clientId && (Object.keys(calendarTags).length > 0 || Object.keys(gmailTags).length > 0)) {
+                        if (!CalendarService.isInitialized) {
+                              await CalendarService.initialize(settings.clientId);
+        }
+                        if (!GmailService.isInitialized) {
+                              await GmailService.initialize(settings.clientId);
+        }
+                        if (!CalendarService.isSignedIn() || !GmailService.isSignedIn()) {
+                              try {
+                                    const token = await chrome.identity.getAuthToken({
+                            interactive: false
+            });
+                                    if (token) {
+                                          const accessToken = typeof token === 'object' && token.token ? token.token : token;
+                                          if (!CalendarService.isSignedIn()) {
+                                                CalendarService.accessToken = accessToken;
+              }
+                                          if (!GmailService.isSignedIn()) {
+                                                GmailService.accessToken = accessToken;
+              }
+                                          console.log("Noma: Background auth successful");
+            }
+          }
+                    catch (authError) {
+                                    console.log("Noma: Background auth failed (user needs to sign in manually)");
+                                    return;
+          }
+        }
+                        if (Object.keys(calendarTags).length > 0 && CalendarService.isSignedIn()) {
+                              await CalendarSync.syncAllCalendarTags();
+        }
+                        if (Object.keys(gmailTags).length > 0 && GmailService.isSignedIn()) {
+                              await GmailSync.syncAllGmailTags();
+        }
+      }
+    }
+        catch (error) {
+                  console.warn("Noma: Background sync error:", error);
+    }
+  },
+  15 * 60 * 1000);
+        console.log("Noma: Background auto-sync timer started (15 min interval)");
+}
+chrome.action.onClicked.addListener(async () => {
+      await openNomaWindow();
+});
+chrome.commands.onCommand.addListener(async (command) => {
+      if (command === "_execute_action") {
+            await openNomaWindow();
+  }
+});
+async function openNomaWindow() {
+      try {
+            const existingWindows = await chrome.windows.getAll();
+            const taggleWindow = existingWindows.find(w => w.type === 'popup' && w.state === 'maximized');
+            if (taggleWindow) {
+                  await chrome.windows.update(taggleWindow.id, {
+                focused: true
+      });
+                  return;
+    }
+            const currentWindow = await chrome.windows.getCurrent();
+            const newWindow = await chrome.windows.create({
+                  url: chrome.runtime.getURL('popup.html'),
+              type: 'popup',
+              state: 'maximized',
+              focused: true
+    });
+            console.log("Noma: Opened fullscreen window:", newWindow.id);
+  }
+    catch (error) {
+            console.error("Noma: Error opening window:", error);
+  }
+}
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+      try {
+            if (!tab || !tab.id) return;
+            let contextData = {};
+            if (info.menuItemId === "noma-save-selection") {
+                  const selectedText = info.selectionText || "";
+                  if (!selectedText.trim()) return;
+                  console.log("Noma: Text context menu clicked, selected text:",
+      selectedText.substring(0,
+      50) + "...");
+                  contextData = {
+                          type: "text",
+                  selection: selectedText,
+                  url: tab.url || "",
+                  title: tab.title || ""
+      };
+    }
+        else if (info.menuItemId === "noma-save-image") {
+                  const imageUrl = info.srcUrl || "";
+                  if (!imageUrl) return;
+                  console.log("Noma: Image context menu clicked, image URL:",
+      imageUrl);
+                  try {
+                        const response = await fetch(imageUrl);
+                        const blob = await response.blob();
+                        const base64 = await blobToBase64(blob);
+                        contextData = {
+                              type: "image",
+                      imageUrl: imageUrl,
+                      imageData: base64,
+                      mimeType: blob.type,
+                      url: tab.url || "",
+                      title: tab.title || ""
+        };
+      }
+            catch (fetchError) {
+                        console.error("Noma: Error fetching image:", fetchError);
+                        contextData = {
+                              type: "image",
+                      imageUrl: imageUrl,
+                      url: tab.url || "",
+                      title: tab.title || ""
+        };
+      }
+    }
+        else if (info.menuItemId === "noma-save-audio") {
+                  const audioContext = await chrome.storage.local.get('noma-audio-context');
+                  let audioUrl = null;
+                  if (audioContext['noma-audio-context']) {
+                        const context = audioContext['noma-audio-context'];
+                        if (Date.now() - context.timestamp < 2000) {
+                              audioUrl = context.audioUrl;
+                              console.log('Noma: Using audio URL from content script:', audioUrl);
+        }
+      }
+                  if (!audioUrl) {
+                        audioUrl = info.srcUrl || info.linkUrl || "";
+      }
+                  if (!audioUrl) {
+                        console.log("Noma: No audio URL found");
+                        return;
+      }
+                  const audioExtensions = ['.mp3',
+      '.wav',
+      '.ogg',
+      '.m4a',
+      '.aac',
+      '.flac',
+      '.wma',
+      '.opus',
+      '.webm'];
+                  const isAudioFile = audioExtensions.some(ext => audioUrl.toLowerCase().includes(ext));
+                  const isGmailAttachment = audioUrl.includes('mail.google.com') &&                                (audioUrl.includes('view=att') || audioUrl.includes('&attid='));
+                  if (info.linkUrl && !isAudioFile && !isGmailAttachment) {
+                        console.log("Noma: Link is not an audio file, skipping");
+                        return;
+      }
+                  console.log("Noma: Audio context menu clicked, audio URL:",
+      audioUrl);
+                  contextData = {
+                        type: "audio",
+                  audioUrl: audioUrl,
+                  url: tab.url || "",
+                  title: tab.title || "",
+                  pendingTranscription: true
+      };
+                  await chrome.storage.local.remove('noma-audio-context');
+    }
+        else {
+                  return;
+    }
+            const channel = `noma-picker-${Date.now()}`;
+            await chrome.storage.local.set({
+            [channel]: contextData
+    });
+            console.log("Noma: Data stored with channel:", channel);
+            const window = await chrome.windows.create({
+                  url: chrome.runtime.getURL(`picker.html?ch=${encodeURIComponent(channel)}`),
+              type: "popup",
+              width: 420,
+              height: 520
+    });
+            console.log("Noma: Picker window created:", window.id);
+  }
+    catch (error) {
+            console.error("Noma: Error in context menu handler:", error);
+  }
+});
+function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+  });
+}
+chrome.runtime.onMessage.addListener((message,
+sender,
+sendResponse) => {
+      if (message.action === 'openPopup') {
+            openNomaWindow();
+            sendResponse({
+            success: true
+    });
+  }
+      return true;
 });
