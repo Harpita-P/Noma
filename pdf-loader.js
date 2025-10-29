@@ -1,13 +1,1 @@
-// PDF.js loader module for Chrome extension
-import * as pdfjsLib from './pdf.min.js';
-
-// Set up worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('lib/pdf.worker.min.js');
-
-// Export for global access
-window.pdfjsLib = pdfjsLib;
-
-// Notify that PDF.js is loaded
-window.dispatchEvent(new Event('pdfjs-ready'));
-
-console.log("Noma: PDF.js module loaded and configured");
+import * as pdfjsLib from './pdf.min.js';pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('lib/pdf.worker.min.js');window.pdfjsLib = pdfjsLib;window.dispatchEvent(new Event('pdfjs-ready'));console.log("Noma: PDF.js module loaded and configured");

@@ -21,8 +21,7 @@
         display: flex;
         flex-direction: column;
       }
-      
-      /* Custom scrollbar styling - positioned at screen edge */
+
       .scrollable-content::-webkit-scrollbar {
         width: 8px;
       }
@@ -41,8 +40,7 @@
       .scrollable-content::-webkit-scrollbar-thumb:hover {
         background: #94a3b8;
       }
-      
-      /* Firefox scrollbar */
+
       .scrollable-content {
         scrollbar-width: thin;
         scrollbar-color: #cbd5e1 #f1f5f9;
@@ -337,39 +335,37 @@
         background: #e5e7eb;
         margin: 40px 0;
       }
-      
-      /* Tag color variations matching content.js palette */
-      .tag-item:nth-child(6n+1) { border-color: #60a5fa30; } /* Light blue */
+
+      .tag-item:nth-child(6n+1) { border-color: #60a5fa30; } 
       .tag-item:nth-child(6n+1)::before { background: #60a5fa; }
       .tag-item:nth-child(6n+1) .tag-name { color: #60a5fa; }
       .tag-item:nth-child(6n+1) .tag-count { background: #60a5fa15; border-color: #60a5fa30; color: #60a5fa; }
       
-      .tag-item:nth-child(6n+2) { border-color: #ef444430; } /* Red */
+      .tag-item:nth-child(6n+2) { border-color: #ef444430; } 
       .tag-item:nth-child(6n+2)::before { background: #ef4444; }
       .tag-item:nth-child(6n+2) .tag-name { color: #ef4444; }
       .tag-item:nth-child(6n+2) .tag-count { background: #ef444415; border-color: #ef444430; color: #ef4444; }
       
-      .tag-item:nth-child(6n+3) { border-color: #fbbf2430; } /* Yellow */
+      .tag-item:nth-child(6n+3) { border-color: #fbbf2430; } 
       .tag-item:nth-child(6n+3)::before { background: #fbbf24; }
       .tag-item:nth-child(6n+3) .tag-name { color: #fbbf24; }
       .tag-item:nth-child(6n+3) .tag-count { background: #fbbf2415; border-color: #fbbf2430; color: #fbbf24; }
       
-      .tag-item:nth-child(6n+4) { border-color: #a855f730; } /* Purple */
+      .tag-item:nth-child(6n+4) { border-color: #a855f730; } 
       .tag-item:nth-child(6n+4)::before { background: #a855f7; }
       .tag-item:nth-child(6n+4) .tag-name { color: #a855f7; }
       .tag-item:nth-child(6n+4) .tag-count { background: #a855f715; border-color: #a855f730; color: #a855f7; }
       
-      .tag-item:nth-child(6n+5) { border-color: #f472b630; } /* Light pink */
+      .tag-item:nth-child(6n+5) { border-color: #f472b630; } 
       .tag-item:nth-child(6n+5)::before { background: #f472b6; }
       .tag-item:nth-child(6n+5) .tag-name { color: #f472b6; }
       .tag-item:nth-child(6n+5) .tag-count { background: #f472b615; border-color: #f472b630; color: #f472b6; }
       
-      .tag-item:nth-child(6n+6) { border-color: #fb923c30; } /* Orange */
+      .tag-item:nth-child(6n+6) { border-color: #fb923c30; } 
       .tag-item:nth-child(6n+6)::before { background: #fb923c; }
       .tag-item:nth-child(6n+6) .tag-name { color: #fb923c; }
       .tag-item:nth-child(6n+6) .tag-count { background: #fb923c15; border-color: #fb923c30; color: #fb923c; }
-      
-      /* Integration Styles */
+
       .setup-section {
         margin-bottom: 16px;
         padding: 12px;
@@ -476,16 +472,14 @@
         flex-direction: column;
         gap: 20px;
       }
-      
-      /* Responsive design for smaller screens */
+
       @media (max-width: 1000px) {
         .two-column-layout {
           grid-template-columns: 1fr;
           gap: 24px;
         }
       }
-      
-      /* Compact integration items */
+
       .integration-item {
         padding: 10px 12px;
         min-height: auto;
@@ -508,8 +502,7 @@
         padding: 2px 5px;
         min-width: 60px;
       }
-      
-      /* Compact tile-based integration layout */
+
       .integration-tiles {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -616,7 +609,7 @@
     <div class="scrollable-content">
       <div class="main-content">
         <div class="two-column-layout">
-          <!-- Left Column -->
+          
           <div class="column">
             <div class="form-group">
               <label class="form-label">OpenAI API Key</label>
@@ -636,7 +629,6 @@
               <div class="status-text">Will display as @myResearch</div>
             </div>
 
-            <!-- PDF Upload Section -->
             <div class="form-group">
               <div class="section-header">
                 <h3 class="section-title">Connect Document</h3>
@@ -651,7 +643,6 @@
               <div id="upload-status" class="status-text"></div>
             </div>
 
-            <!-- Audio Upload Section -->
             <div class="form-group">
               <div class="section-header">
                 <h3 class="section-title">🎙️ Transcribe Audio</h3>
@@ -667,14 +658,12 @@
             </div>
           </div>
 
-          <!-- Right Column - Integrations -->
           <div class="column">
             <div class="form-group">
               <div class="section-header">
                 <h3 class="section-title">🔗 Integrations</h3>
               </div>
-        
-        <!-- Google Setup -->
+
         <div id="google-setup" class="setup-section">
           <div class="form-row">
             <input id="calendar-client-id" type="text" placeholder="Google Client ID" style="flex: 1;" />
@@ -682,10 +671,9 @@
           </div>
           <div id="calendar-auth-status" class="status-text"></div>
         </div>
-        
-        <!-- Integration Tiles -->
+
         <div class="integration-tiles">
-          <!-- Calendar Integration -->
+          
           <div class="integration-item-wrapper">
             <div class="integration-tile" id="calendar-tile">
               <img src="Images/gc-logo.png" alt="Google Calendar" />
@@ -698,8 +686,7 @@
               <button id="calendar-disconnect" class="btn integration-tile-button" style="display: none;">Disconnect</button>
             </div>
           </div>
-          
-          <!-- Gmail Integration -->
+
           <div class="integration-item-wrapper">
             <div class="integration-tile" id="gmail-tile">
               <img src="Images/email-logo.png" alt="Gmail" />
@@ -712,8 +699,7 @@
               <button id="gmail-disconnect" class="btn integration-tile-button" style="display: none;">Disconnect</button>
             </div>
           </div>
-          
-          <!-- Notion Integration -->
+
           <div class="integration-item-wrapper">
             <div class="integration-tile" id="notion-tile">
               <img src="Images/not-logo.png" alt="Notion" />
@@ -726,8 +712,7 @@
               <button id="notion-disconnect" class="btn integration-tile-button" style="display: none;">Disconnect</button>
             </div>
           </div>
-          
-          <!-- Pinterest Integration -->
+
           <div class="integration-item-wrapper">
             <div class="integration-tile" id="pinterest-tile">
               <img src="Images/pin-logo.png" alt="Pinterest" />
@@ -741,8 +726,7 @@
             </div>
           </div>
         </div>
-        
-        <!-- Notion Setup Modal (hidden by default) -->
+
         <div id="notion-setup-modal" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
           <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Notion Setup</h4>
           <div class="form-group" style="margin-bottom: 12px;">
@@ -765,14 +749,12 @@
           </div>
           <div id="notion-setup-status" class="status-text" style="margin-top: 8px;"></div>
         </div>
-        
-        <!-- Notion Tags List -->
+
         <div id="notion-tags-section" style="display: none; margin-top: 16px;">
           <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Notion Tags</h4>
           <div id="notion-tags-list"></div>
         </div>
-        
-        <!-- Pinterest Setup Modal (hidden by default) -->
+
         <div id="pinterest-setup-modal" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
           <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Pinterest Setup</h4>
           <div class="form-group" style="margin-bottom: 12px;">
@@ -790,13 +772,11 @@
           </div>
           <div id="pinterest-setup-status" class="status-text" style="margin-top: 8px;"></div>
         </div>
-        
-        <!-- Pinterest Tags List -->
+
         <div id="pinterest-tags-section" style="display: none; margin-top: 16px;">
           <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Pinterest Tags</h4>
           <div id="pinterest-tags-list"></div>
-              
-              <!-- Hidden elements for compatibility -->
+
               <div style="display: none;">
                 <input id="calendar-api-key" />
                 <button id="calendar-signin"></button>
@@ -824,7 +804,6 @@
             </div>
           </div>
         </div>
-
 
       <div class="divider"></div>
 
