@@ -1,1 +1,82 @@
-class PinterestService {  constructor() {    this.rssBaseUrl = 'https://www.pinterest.com';  }  async resolveShortUrl(shortUrl) {    try {      const response = await fetch(shortUrl, {        method: 'HEAD',        redirect: 'follow'      });      return response.url;    } catch (error) {      console.error('Error resolving short URL:', error);      throw new Error('Failed to resolve pin.it short link');    }  }  extractBoardInfo(url) {    try {      if (url.includes('pin.it/')) {        throw new Error('Please resolve pin.it URL first');      }      const cleanUrl = url.split('?')[0].replace(/\/$/, '');      const match = cleanUrl.match(/pinterest\.com\/([^\/]+)\/([^\/]+)/);      if (!match) {        throw new Error('Invalid Pinterest board URL format');      }      return {        username: match[1],        boardName: match[2]      };    } catch (error) {      console.error('Error extracting board info:', error);      throw error;    }  }  getRssFeedUrl(username, boardName) {    return `${this.rssBaseUrl}/${username}/${boardName}.rss`;  }  async fetchRssFeed(rssUrl) {    try {      const response = await fetch(rssUrl);      if (!response.ok) {        throw new Error(`RSS feed not accessible: ${response.status}`);      }      const xmlText = await response.text();      return this.parseRssXml(xmlText);    } catch (error) {      console.error('Error fetching RSS feed:', error);      throw error;    }  }  parseRssXml(xmlText) {    try {      const parser = new DOMParser();      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');      const parserError = xmlDoc.querySelector('parsererror');      if (parserError) {        throw new Error('Failed to parse RSS XML');      }      const items = xmlDoc.querySelectorAll('item');      const pins = [];      items.forEach(item => {        const title = item.querySelector('title')?.textContent || 'Untitled Pin';        const link = item.querySelector('link')?.textContent || '';        const description = item.querySelector('description')?.textContent || '';        let imageUrl = '';        const mediaContent = item.querySelector('content, media\\:content');        const enclosure = item.querySelector('enclosure');        if (mediaContent) {          imageUrl = mediaContent.getAttribute('url') || '';        } else if (enclosure) {          imageUrl = enclosure.getAttribute('url') || '';        } else {          const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);          if (imgMatch) {            imageUrl = imgMatch[1];          }        }        if (imageUrl && link) {          pins.push({            title: title.trim(),            link: link.trim(),            imageUrl: imageUrl.trim(),            description: this.stripHtml(description).trim()          });        }      });      return pins;    } catch (error) {      console.error('Error parsing RSS XML:', error);      throw error;    }  }  /**   * Strip HTML tags from text   * @param {string} html - HTML string   * @returns {string} - Plain text   */  stripHtml(html) {    const tmp = document.createElement('div');    tmp.innerHTML = html;    return tmp.textContent || tmp.innerText || '';  }  /**   * Download image and convert to base64   * @param {string} imageUrl - Image URL   * @returns {Promise<string>} - Base64 encoded image   */  async downloadImageAsBase64(imageUrl) {    try {      const response = await fetch(imageUrl);      if (!response.ok) {        throw new Error(`Failed to fetch image: ${response.status}`);      }      const blob = await response.blob();      // Compress/resize if needed      const compressedBlob = await this.compressImage(blob);      return new Promise((resolve, reject) => {        const reader = new FileReader();        reader.onloadend = () => resolve(reader.result);        reader.onerror = reject;        reader.readAsDataURL(compressedBlob);      });    } catch (error) {      console.error('Error downloading image:', error);      throw error;    }  }  /**   * Compress image to reduce storage size   * @param {Blob} blob - Image blob   * @returns {Promise<Blob>} - Compressed image blob   */  async compressImage(blob) {    return new Promise((resolve, reject) => {      const img = new Image();      const canvas = document.createElement('canvas');      const ctx = canvas.getContext('2d');      img.onload = () => {        // Max dimensions        const MAX_WIDTH = 512;        const MAX_HEIGHT = 512;        let width = img.width;        let height = img.height;        // Calculate new dimensions maintaining aspect ratio        if (width > height) {          if (width > MAX_WIDTH) {            height *= MAX_WIDTH / width;            width = MAX_WIDTH;          }        } else {          if (height > MAX_HEIGHT) {            width *= MAX_HEIGHT / height;            height = MAX_HEIGHT;          }        }        canvas.width = width;        canvas.height = height;        ctx.drawImage(img, 0, 0, width, height);        canvas.toBlob(          (compressedBlob) => {            resolve(compressedBlob || blob);          },          'image/jpeg',          0.7 // Quality: 0.7 = good balance between quality and size        );      };      img.onerror = () => reject(new Error('Failed to load image for compression'));      img.src = URL.createObjectURL(blob);    });  }  /**   * Fetch board pins with images as base64   * @param {string} boardUrl - Pinterest board URL (full or pin.it)   * @returns {Promise<Object>} - Board info and pins with base64 images   */  async fetchBoardPins(boardUrl) {    try {      // Resolve short URL if needed      let fullUrl = boardUrl;      if (boardUrl.includes('pin.it/')) {        fullUrl = await this.resolveShortUrl(boardUrl);      }      // Extract board info      const boardInfo = this.extractBoardInfo(fullUrl);      // Get RSS feed URL      const rssUrl = this.getRssFeedUrl(boardInfo.username, boardInfo.boardName);      // Fetch and parse RSS feed      const pins = await this.fetchRssFeed(rssUrl);      // Download images and convert to base64      const pinsWithImages = [];      for (const pin of pins) {        try {          const imageBase64 = await this.downloadImageAsBase64(pin.imageUrl);          pinsWithImages.push({            ...pin,            imageBase64: imageBase64          });        } catch (error) {          console.error(`Failed to download image for pin: ${pin.title}`, error);          // Skip pins with failed image downloads        }      }      return {        success: true,        boardInfo: boardInfo,        pins: pinsWithImages,        totalPins: pinsWithImages.length,        fetchedAt: new Date().toISOString()      };    } catch (error) {      console.error('Error fetching board pins:', error);      return {        success: false,        error: error.message      };    }  }  /**   * De-duplicate pins by URL   * @param {Array} pins - Array of pin objects   * @returns {Array} - De-duplicated pins   */  deduplicatePins(pins) {    const seen = new Set();    return pins.filter(pin => {      if (seen.has(pin.link)) {        return false;      }      seen.add(pin.link);      return true;    });  }}// Export for use in other scriptsif (typeof window !== 'undefined') {  window.PinterestService = PinterestService;}if (typeof module !== 'undefined' && module.exports) {  module.exports = PinterestService;}
+class PinterestService {
+      constructor() {
+            this.rssBaseUrl = 'https://www.pinterest.com';
+  }
+      async resolveShortUrl(shortUrl) {
+            try {
+                  const response = await fetch(shortUrl, {
+                        method: 'HEAD',
+                  redirect: 'follow'
+      });
+                  return response.url;
+    }
+        catch (error) {
+                  console.error('Error resolving short URL:', error);
+                  throw new Error('Failed to resolve pin.it short link');
+    }
+  }
+      extractBoardInfo(url) {
+            try {
+                  if (url.includes('pin.it/')) {
+                        throw new Error('Please resolve pin.it URL first');
+      }
+                  const cleanUrl = url.split('?')[0].replace(/\/$/,
+      '');
+                  const match = cleanUrl.match(/pinterest\.com\/([^\/]+)\/([^\/]+)/);
+                  if (!match) {
+                        throw new Error('Invalid Pinterest board URL format');
+      }
+                  return {
+                        username: match[1],
+                  boardName: match[2]
+      };
+    }
+        catch (error) {
+                  console.error('Error extracting board info:', error);
+                  throw error;
+    }
+  }
+      getRssFeedUrl(username,
+  boardName) {
+            return `${this.rssBaseUrl}/${username}/${boardName}.rss`;
+  }
+      async fetchRssFeed(rssUrl) {
+            try {
+                  const response = await fetch(rssUrl);
+                  if (!response.ok) {
+                        throw new Error(`RSS feed not accessible: ${response.status}`);
+      }
+                  const xmlText = await response.text();
+                  return this.parseRssXml(xmlText);
+    }
+        catch (error) {
+                  console.error('Error fetching RSS feed:', error);
+                  throw error;
+    }
+  }
+      parseRssXml(xmlText) {
+            try {
+                  const parser = new DOMParser();
+                  const xmlDoc = parser.parseFromString(xmlText,
+      'text/xml');
+                  const parserError = xmlDoc.querySelector('parsererror');
+                  if (parserError) {
+                        throw new Error('Failed to parse RSS XML');
+      }
+                  const items = xmlDoc.querySelectorAll('item');
+                  const pins = [];
+                  items.forEach(item => {
+                        const title = item.querySelector('title')?.textContent || 'Untitled Pin';
+                        const link = item.querySelector('link')?.textContent || '';
+                        const description = item.querySelector('description')?.textContent || '';
+                        let imageUrl = '';
+                        const mediaContent = item.querySelector('content, media\\:content');
+                        const enclosure = item.querySelector('enclosure');
+                        if (mediaContent) {
+                              imageUrl = mediaContent.getAttribute('url') || '';
+        }
+                else if (enclosure) {
+                              imageUrl = enclosure.getAttribute('url') || '';
+        }
+                else {
+                              const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);          if (imgMatch) {            imageUrl = imgMatch[1];          }        }        if (imageUrl && link) {          pins.push({            title: title.trim(),            link: link.trim(),            imageUrl: imageUrl.trim(),            description: this.stripHtml(description).trim()          });        }      });      return pins;    } catch (error) {      console.error('Error parsing RSS XML:', error);      throw error;    }  }  /**  * Strip HTML tags from text  * @param {string} html - HTML string  * @returns {string} - Plain text  */  stripHtml(html) {    const tmp = document.createElement('div');    tmp.innerHTML = html;    return tmp.textContent || tmp.innerText || '';  }  /**  * Download image and convert to base64  * @param {string} imageUrl - Image URL  * @returns {Promise<string>} - Base64 encoded image  */  async downloadImageAsBase64(imageUrl) {    try {      const response = await fetch(imageUrl);      if (!response.ok) {        throw new Error(`Failed to fetch image: ${response.status}`);      }      const blob = await response.blob();      // Compress/resize if needed      const compressedBlob = await this.compressImage(blob);      return new Promise((resolve, reject) => {        const reader = new FileReader();        reader.onloadend = () => resolve(reader.result);        reader.onerror = reject;        reader.readAsDataURL(compressedBlob);      });    } catch (error) {      console.error('Error downloading image:', error);      throw error;    }  }  /**  * Compress image to reduce storage size  * @param {Blob} blob - Image blob  * @returns {Promise<Blob>} - Compressed image blob  */  async compressImage(blob) {    return new Promise((resolve, reject) => {      const img = new Image();      const canvas = document.createElement('canvas');      const ctx = canvas.getContext('2d');      img.onload = () => {        // Max dimensions        const MAX_WIDTH = 512;        const MAX_HEIGHT = 512;        let width = img.width;        let height = img.height;        // Calculate new dimensions maintaining aspect ratio        if (width > height) {          if (width > MAX_WIDTH) {            height *= MAX_WIDTH / width;            width = MAX_WIDTH;          }        } else {          if (height > MAX_HEIGHT) {            width *= MAX_HEIGHT / height;            height = MAX_HEIGHT;          }        }        canvas.width = width;        canvas.height = height;        ctx.drawImage(img, 0, 0, width, height);        canvas.toBlob(          (compressedBlob) => {            resolve(compressedBlob || blob);          },          'image/jpeg',          0.7 // Quality: 0.7 = good balance between quality and size        );      };      img.onerror = () => reject(new Error('Failed to load image for compression'));      img.src = URL.createObjectURL(blob);    });  }  /**  * Fetch board pins with images as base64  * @param {string} boardUrl - Pinterest board URL (full or pin.it)  * @returns {Promise<Object>} - Board info and pins with base64 images  */  async fetchBoardPins(boardUrl) {    try {      // Resolve short URL if needed      let fullUrl = boardUrl;      if (boardUrl.includes('pin.it/')) {        fullUrl = await this.resolveShortUrl(boardUrl);      }      // Extract board info      const boardInfo = this.extractBoardInfo(fullUrl);      // Get RSS feed URL      const rssUrl = this.getRssFeedUrl(boardInfo.username, boardInfo.boardName);      // Fetch and parse RSS feed      const pins = await this.fetchRssFeed(rssUrl);      // Download images and convert to base64      const pinsWithImages = [];      for (const pin of pins) {        try {          const imageBase64 = await this.downloadImageAsBase64(pin.imageUrl);          pinsWithImages.push({            ...pin,            imageBase64: imageBase64          });        } catch (error) {          console.error(`Failed to download image for pin: ${pin.title}`, error);          // Skip pins with failed image downloads        }      }      return {        success: true,        boardInfo: boardInfo,        pins: pinsWithImages,        totalPins: pinsWithImages.length,        fetchedAt: new Date().toISOString()      };    } catch (error) {      console.error('Error fetching board pins:', error);      return {        success: false,        error: error.message      };    }  }  /**  * De-duplicate pins by URL  * @param {Array} pins - Array of pin objects  * @returns {Array} - De-duplicated pins  */  deduplicatePins(pins) {    const seen = new Set();    return pins.filter(pin => {      if (seen.has(pin.link)) {        return false;      }      seen.add(pin.link);      return true;    });  }}// Export for use in other scriptsif (typeof window !== 'undefined') {  window.PinterestService = PinterestService;}if (typeof module !== 'undefined' && module.exports) {  module.exports = PinterestService;}
