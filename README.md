@@ -4,6 +4,15 @@
 
 By default, Noma runs **on-device** with **Gemini Nano**. If the context is too large for Nano (≈ **30,000+ characters**), Noma uses **RAG** backed by an **OpenAI embedding model** to retrieve only the most relevant pieces before sending the final prompt.
 
+### Controls
+
+- `Ctrl/⌘ + Q` - Open Tag selector 
+- `Ctrl/⌘ + Space` - Pass "Context + Prompt" into Gemini Nano 
+
+- Highlight text (on the web) + click on the Noma spinner - Saves temporary context to be used with the immediate tag
+
+- Click on the Noma Logo on the Tag selector - Opens Noma extension settings 
+
 ### Quick Start
 
 ```bash
