@@ -14,6 +14,9 @@ const els = {
       openaiKey: document.getElementById("openai-key"),
       saveOpenaiKey: document.getElementById("save-openai-key"),
       openaiKeyStatus: document.getElementById("openai-key-status"),
+      geminiKey: document.getElementById("gemini-key"),
+      saveGeminiKey: document.getElementById("save-gemini-key"),
+      geminiKeyStatus: document.getElementById("gemini-key-status"),
       name: document.getElementById("tag-name"),
       create: document.getElementById("create"),
       list: document.getElementById("list"),
@@ -78,6 +81,7 @@ const els = {
       pinterestTagsList: document.getElementById("pinterest-tags-list"),
 };
 els.saveOpenaiKey.onclick = onSaveOpenAIKey;
+els.saveGeminiKey.onclick = onSaveGeminiKey;
 els.create.onclick = onCreate;
 els.refresh.onclick = render;
 els.pdfFile.onchange = onPdfFileChange;
@@ -219,19 +223,60 @@ async function onSaveOpenAIKey() {
     },
     2000);
   }
-    catch (error) {
-            console.error('Failed to save OpenAI API key:',
-    error);
-            els.openaiKeyStatus.textContent = '❌ Failed to save API key';
-            setTimeout(() => {
-                  els.openaiKeyStatus.textContent = 'Required for semantic search on large contexts (25k+ chars)';
-    },
-    3000);
+      catch (error) {
+            console.error('Error saving OpenAI API key:', error);
+            els.openaiKeyStatus.textContent = 'Error saving API key';
   }
-    finally {
+      finally {
             els.saveOpenaiKey.disabled = false;
   }
 }
+async function onSaveGeminiKey() {
+      const apiKey = els.geminiKey.value.trim();
+      if (!apiKey) {
+            els.geminiKeyStatus.textContent = 'Please enter an API key';
+            return;
+  }
+      if (!apiKey.startsWith('AIza')) {
+            els.geminiKeyStatus.textContent = 'API key should start with "AIza"';
+            return;
+  }
+      try {
+            els.saveGeminiKey.disabled = true;
+            els.geminiKeyStatus.textContent = 'Saving...';
+            await chrome.storage.local.set({
+                    'noma-gemini-api-key': apiKey
+    });
+            els.geminiKeyStatus.textContent = '✓ API key saved (for image generation)';
+            els.geminiKey.value = '';
+              setTimeout(() => {
+                  checkGeminiKeyStatus();
+    },
+    2000);
+  }
+    catch (error) {
+            console.error('Error saving Gemini API key:', error);
+            els.geminiKeyStatus.textContent = 'Error saving API key';
+  }
+    finally {
+            els.saveGeminiKey.disabled = false;
+  }
+}
+async function checkGeminiKeyStatus() {
+      try {
+            const result = await chrome.storage.local.get('noma-gemini-api-key');
+            if (result['noma-gemini-api-key']) {
+                  els.geminiKeyStatus.textContent = '✓ API key configured';
+    }
+              else {
+                  els.geminiKeyStatus.textContent = 'Required for image generation with Gemini Nano Banana';
+    }
+  }
+    catch (error) {
+            console.error('Error checking Gemini API key status:', error);
+  }
+}
+checkGeminiKeyStatus();
 async function onCreate() {
       const raw = (els.name.value || "").trim();
       if (!raw) return;

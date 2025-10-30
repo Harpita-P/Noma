@@ -4,7 +4,81 @@
   }
           window.taggleContentScriptLoaded = true;
           const style = document.createElement('style');
-          style.textContent = `    /* Import Ranade font from Fontshare */    @import url('https://api.fontshare.com/v2/css?f[]=ranade@400&display=swap');    /* Black cursor for input fields and contentEditable elements */    input, textarea, [contenteditable="true"], [contenteditable] {      caret-color: #000000 !important;    }    /* Black cursor for specific selectors that might override */    input:focus, textarea:focus, [contenteditable="true"]:focus, [contenteditable]:focus {      caret-color: #000000 !important;    }    /* Ensure it works on common rich text editors */    .ql-editor, .DraftEditor-editorContainer, .notranslate, [role="textbox"] {      caret-color: #000000 !important;    }    #noma-logo-button {      border-radius: 35%;      padding: 0;      transform: none !important;      transition: none !important;      overflow: hidden;      background: transparent !important;      border: none !important;    }    #noma-logo-button:hover {      transform: none !important;    }    /* Search input focus state - minimal grey */    #tag-search-input:focus {      border-color: rgba(128, 128, 128, 0.2) !important;    }    :root {      --taggle-placeholder-color: rgba(128, 128, 128, 0.4);    }    #tag-search-input::placeholder {      color: var(--taggle-placeholder-color);    }    /* Floating Noma button for text selection */    #noma-floating-button {      position: absolute;      width: 32px;      height: 32px;      border-radius: 50%;      background: white;      border: 1px solid rgba(0, 0, 0, 0.1);      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);      cursor: pointer;      display: flex;      align-items: center;      justify-content: center;      z-index: 999999;      transition: transform 0.2s ease;    }    /* Make tooltip appear instantly */    #noma-floating-button[title]:hover::after {      transition-delay: 0s !important;    }    #noma-floating-button:hover {      transform: scale(1.1);    }    #noma-floating-button img {      width: 26px;      height: 26px;      object-fit: contain;      animation: noma-spin 2s linear infinite;    }    @keyframes noma-spin {      from {        transform: rotate(0deg);      }      to {        transform: rotate(360deg);      }    }  `;
+          style.textContent = `
+    /* Import Ranade font from Fontshare */
+    @import url('https://api.fontshare.com/v2/css?f[]=ranade@400&display=swap');
+    /* Black cursor for input fields and contentEditable elements */
+    input, textarea, [contenteditable="true"], [contenteditable] {
+      caret-color: #000000 !important;
+    }
+    /* Black cursor for specific selectors that might override */
+    input:focus, textarea:focus, [contenteditable="true"]:focus, [contenteditable]:focus {
+      caret-color: #000000 !important;
+    }
+    /* Ensure it works on common rich text editors */
+    .ql-editor, .DraftEditor-editorContainer, .notranslate, [role="textbox"] {
+      caret-color: #000000 !important;
+    }
+    #noma-logo-button {
+      border-radius: 35%;
+      padding: 0;
+      transform: none !important;
+      transition: none !important;
+      overflow: hidden;
+      background: transparent !important;
+      border: none !important;
+    }
+    #noma-logo-button:hover {
+      transform: none !important;
+    }
+    /* Search input focus state - minimal grey */
+    #tag-search-input:focus {
+      border-color: rgba(128, 128, 128, 0.2) !important;
+    }
+    :root {
+      --taggle-placeholder-color: rgba(128, 128, 128, 0.4);
+    }
+    #tag-search-input::placeholder {
+      color: var(--taggle-placeholder-color);
+    }
+    /* Floating Noma button for text selection */
+    #noma-floating-button {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: white;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      transition: transform 0.2s ease;
+    }
+    /* Make tooltip appear instantly */
+    #noma-floating-button[title]:hover::after {
+      transition-delay: 0s !important;
+    }
+    #noma-floating-button:hover {
+      transform: scale(1.1);
+    }
+    #noma-floating-button img {
+      width: 26px;
+      height: 26px;
+      object-fit: contain;
+      animation: noma-spin 2s linear infinite;
+    }
+    @keyframes noma-spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  `;
           document.head.appendChild(style);
           function formatCalendarEventForAI(event) {
                   const parts = [];
@@ -148,7 +222,8 @@
           loadDynamicServices();
           loadRAGSystem();
           const EXPECTED = {
-                  expectedInputs:  [      {
+                  expectedInputs:  [
+      {
                     type: "text",
       languages: ["en"]
     },
@@ -223,7 +298,8 @@
         async function runMultimodalPrompt(contextData, userPrompt, abortSignal) {
                 try {
                         const mmExpected = {
-                                expectedInputs: [        {
+                                expectedInputs: [
+        {
                                 type: "text",
             languages: ["en"]
         },
@@ -279,7 +355,9 @@
                         if (err?.name === 'NotSupportedError' || /multimodal|image/i.test(err?.message || '')) {
                                 console.warn("Multimodal not supported here; falling back to text-only:", err);
                                 const contextText = contextData.textBlob?.trim() || "";
-                                const merged = contextText        ? `CONTEXT:\n${contextText}\n\nUSER PROMPT:\n${userPrompt}`        : `USER PROMPT:\n${userPrompt}`;
+                                const merged = contextText
+        ? `CONTEXT:\n${contextText}\n\nUSER PROMPT:\n${userPrompt}`
+        : `USER PROMPT:\n${userPrompt}`;
                                 return runPrompt(merged,
         abortSignal);
       }
@@ -301,6 +379,11 @@
       tagName,
       userPrompt
     };
+  }
+          function isImageGenerationRequest(userPrompt) {
+                  if (!userPrompt) return false;
+                  const trimmed = userPrompt.trim();
+                  return /^create\s+/i.test(trimmed);
   }
           function findTagInText(text, caretPos) {
                   const tagRegex = /@[A-Za-z0-9_]+/g;
@@ -388,7 +471,8 @@
                                 'noma-calendar-tags': calendarTags = {},
           'noma-calendar-contexts': calendarContexts = {}
         }
-                          =          await chrome.storage.local.get(['noma-calendar-tags',
+                          =
+          await chrome.storage.local.get(['noma-calendar-tags',
         'noma-calendar-contexts']);
                                   console.log('Taggle: Checking calendar tags for tagId:', tagId);
                                   console.log('Taggle: Available calendar tags:',
@@ -422,7 +506,8 @@
                                 'noma-gmail-tags': gmailTags = {},
           'noma-gmail-contexts': gmailContexts = {}
         }
-                          =          await chrome.storage.local.get(['noma-gmail-tags',
+                          =
+          await chrome.storage.local.get(['noma-gmail-tags',
         'noma-gmail-contexts']);
                                   console.log('Taggle: Checking Gmail tags for tagId:', tagId);
                                   console.log('Taggle: Available Gmail tags:',
@@ -456,7 +541,8 @@
                                 'noma-notion-tags': notionTags = {},
           'noma-notion-contexts': notionContexts = {}
         }
-                          =          await chrome.storage.local.get(['noma-notion-tags',
+                          =
+          await chrome.storage.local.get(['noma-notion-tags',
         'noma-notion-contexts']);
                                   console.log('Taggle: Checking Notion tags for tagId:', tagId);
                                   console.log('Taggle: Available Notion tags:',
@@ -490,7 +576,8 @@
                                 'noma-pinterest-tags': pinterestTags = {},
           'noma-pinterest-contexts': pinterestContexts = {}
         }
-                          =          await chrome.storage.local.get(['noma-pinterest-tags',
+                          =
+          await chrome.storage.local.get(['noma-pinterest-tags',
         'noma-pinterest-contexts']);
                                   console.log('Taggle: Checking Pinterest tags for tagId:', tagId);
                                   console.log('Taggle: Available Pinterest tags:',
@@ -828,12 +915,14 @@
               i++) {
                           hash = tagName.charCodeAt(i) + ((hash << 5) - hash);
     }
-                  const colors = [      '#60a5fa',
+                  const colors = [
+      '#60a5fa',
             '#ef4444',
             '#fbbf24',
             '#a855f7',
             '#f472b6',
-            '#fb923c'    ];
+            '#fb923c'
+    ];
                   return colors[Math.abs(hash) % colors.length];
   }
           function distributeTagColors(tags) {
@@ -841,12 +930,14 @@
                     ...tag,
       color: getTagColor(tag.name)
     }));
-                  const colors = [      '#60a5fa',
+                  const colors = [
+      '#60a5fa',
             '#ef4444',
             '#fbbf24',
             '#a855f7',
             '#f472b6',
-            '#fb923c'    ];
+            '#fb923c'
+    ];
                   const tagColors = [];
                   let lastColorIndex = -1;
                   tags.forEach((tag, index) => {
@@ -885,7 +976,23 @@
                   dropdown.id = 'taggle-tag-selector';
                   const updateDropdownTheme = () => {
                           const theme = getThemeStyles();
-                          dropdown.style.cssText = `        position: absolute;        background: ${theme.dropdown.background};        backdrop-filter: blur(20px);        -webkit-backdrop-filter: blur(20px);        border: ${theme.dropdown.border};        border-radius: 12px;        box-shadow: ${theme.dropdown.boxShadow};        max-height: 320px;        overflow: hidden;        z-index: 10000;        font-family: 'Ranade', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;        font-size: 13px;        display: none;        min-width: 280px;        max-width: 400px;      `;
+                          dropdown.style.cssText = `
+        position: absolute;
+        background: ${theme.dropdown.background};
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: ${theme.dropdown.border};
+        border-radius: 12px;
+        box-shadow: ${theme.dropdown.boxShadow};
+        max-height: 320px;
+        overflow: hidden;
+        z-index: 10000;
+        font-family: 'Ranade', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+        font-size: 13px;
+        display: none;
+        min-width: 280px;
+        max-width: 400px;
+      `;
     };
                   updateDropdownTheme();
                   dropdown.updateTheme = updateDropdownTheme;
@@ -907,7 +1014,9 @@
                   return button;
   }
           function handleTextSelection(e) {
-                  if (e.target.closest('#noma-floating-button') ||        e.target.closest('#taggle-tag-selector') ||        e.target.closest('#taggle-context-preview')) {
+                  if (e.target.closest('#noma-floating-button') ||
+        e.target.closest('#taggle-tag-selector') ||
+        e.target.closest('#taggle-context-preview')) {
                           return;
     }
                   setTimeout(() => {
@@ -949,7 +1058,25 @@
           function createContextPreviewPanel() {
                   const panel = document.createElement('div');
                   panel.id = 'taggle-context-preview';
-                  panel.style.cssText = `      position: absolute;      background: rgba(0, 0, 0, 0.9);      backdrop-filter: blur(25px);      -webkit-backdrop-filter: blur(25px);      border: 1px solid #000;      border-radius: 8px;      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);      max-height: 300px;      overflow-y: auto;      z-index: 10001;      font-family: 'Familjen Grotesk', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;      font-size: 11px;      display: none;      min-width: 200px;      max-width: 350px;      padding: 8px;      color: white;    `;
+                  panel.style.cssText = `
+      position: absolute;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid #000;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 10001;
+      font-family: 'Familjen Grotesk', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      font-size: 11px;
+      display: none;
+      min-width: 200px;
+      max-width: 350px;
+      padding: 8px;
+      color: white;
+    `;
                   document.body.appendChild(panel);
                   return panel;
   }
@@ -963,7 +1090,14 @@
                           const caretPos = getCaretPosition(element);
                           const text = getText(element);
                           const tempSpan = document.createElement('span');
-                          tempSpan.style.cssText = `        position: absolute;        visibility: hidden;        white-space: pre;        font: ${window.getComputedStyle(element).font};        padding: ${window.getComputedStyle(element).padding};        border: ${window.getComputedStyle(element).border};      `;
+                          tempSpan.style.cssText = `
+        position: absolute;
+        visibility: hidden;
+        white-space: pre;
+        font: ${window.getComputedStyle(element).font};
+        padding: ${window.getComputedStyle(element).padding};
+        border: ${window.getComputedStyle(element).border};
+      `;
                           tempSpan.textContent = text.substring(0,
       caretPos);
                           document.body.appendChild(tempSpan);
@@ -1061,35 +1195,90 @@
                           const isPinterestTag = tag.isPinterestTag || false;
                           const indicators = [];
                           if (isCalendarTag) {
-                                  indicators.push(`<img src="${chrome.runtime.getURL('Images/gc-logo.png')}" style="          width: 14px;          height: 14px;          margin-right: 3px;          border-radius: 3px;          box-shadow: 0 2px 4px rgba(0,0,0,0.1);          border: 1px solid rgba(255,255,255,0.2);        " title="Google Calendar Tag" />`);
+                                  indicators.push(`<img src="${chrome.runtime.getURL('Images/gc-logo.png')}" style="
+          width: 14px;
+          height: 14px;
+          margin-right: 3px;
+          border-radius: 3px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+        " title="Google Calendar Tag" />`);
       }
                     else if (isGmailTag) {
-                                  indicators.push(`<img src="${chrome.runtime.getURL('Images/email-logo.png')}" style="          width: 14px;          height: 14px;          margin-right: 3px;          border-radius: 3px;          box-shadow: 0 2px 4px rgba(0,0,0,0.1);          border: 1px solid rgba(255,255,255,0.2);        " title="Gmail Tag" />`);
+                                  indicators.push(`<img src="${chrome.runtime.getURL('Images/email-logo.png')}" style="
+          width: 14px;
+          height: 14px;
+          margin-right: 3px;
+          border-radius: 3px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+        " title="Gmail Tag" />`);
       }
                     else if (isNotionTag) {
-                                  indicators.push(`<img src="${chrome.runtime.getURL('Images/not-logo.png')}" style="          width: 14px;          height: 14px;          margin-right: 3px;          border-radius: 3px;          box-shadow: 0 2px 4px rgba(0,0,0,0.1);          border: 1px solid rgba(255,255,255,0.2);        " title="Notion Tag" />`);
+                                  indicators.push(`<img src="${chrome.runtime.getURL('Images/not-logo.png')}" style="
+          width: 14px;
+          height: 14px;
+          margin-right: 3px;
+          border-radius: 3px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+        " title="Notion Tag" />`);
       }
                     else if (isPinterestTag) {
-                                  indicators.push(`<img src="${chrome.runtime.getURL('Images/pin-logo.png')}" style="          width: 14px;          height: 14px;          margin-right: 3px;          border-radius: 3px;          box-shadow: 0 2px 4px rgba(0,0,0,0.1);          border: 1px solid rgba(255,255,255,0.2);        " title="Pinterest Tag" />`);
+                                  indicators.push(`<img src="${chrome.runtime.getURL('Images/pin-logo.png')}" style="
+          width: 14px;
+          height: 14px;
+          margin-right: 3px;
+          border-radius: 3px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+        " title="Pinterest Tag" />`);
       }
                     else {
                                   if (counts.text > 0) {
-                                          indicators.push(`<span style="            display: inline-flex; align-items: center; justify-content: center;            min-width: 14px; height: 14px; border-radius: 3px; background: #3b82f6;            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;          " title="Text: ${counts.text}">${counts.text}</span>`);
+                                          indicators.push(`<span style="
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 14px; height: 14px; border-radius: 3px; background: #3b82f6;
+            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
+          " title="Text: ${counts.text}">${counts.text}</span>`);
         }
                                   if (counts.pdf > 0) {
-                                          indicators.push(`<span style="            display: inline-flex; align-items: center; justify-content: center;            min-width: 14px; height: 14px; border-radius: 3px; background: #ef4444;            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;          " title="PDF: ${counts.pdf}">${counts.pdf}</span>`);
+                                          indicators.push(`<span style="
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 14px; height: 14px; border-radius: 3px; background: #ef4444;
+            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
+          " title="PDF: ${counts.pdf}">${counts.pdf}</span>`);
         }
                                   if (counts.image > 0) {
-                                          indicators.push(`<span style="            display: inline-flex; align-items: center; justify-content: center;            min-width: 14px; height: 14px; border-radius: 3px; background: #eab308;            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;          " title="Images: ${counts.image}">${counts.image}</span>`);
+                                          indicators.push(`<span style="
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 14px; height: 14px; border-radius: 3px; background: #eab308;
+            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
+          " title="Images: ${counts.image}">${counts.image}</span>`);
         }
                                   if (counts.calendar > 0) {
-                                          indicators.push(`<span style="            display: inline-flex; align-items: center; justify-content: center;            min-width: 14px; height: 14px; border-radius: 3px; background: #10b981;            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;          " title="Calendar: ${counts.calendar}">${counts.calendar}</span>`);
+                                          indicators.push(`<span style="
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 14px; height: 14px; border-radius: 3px; background: #10b981;
+            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
+          " title="Calendar: ${counts.calendar}">${counts.calendar}</span>`);
         }
                                   if (counts.email > 0) {
-                                          indicators.push(`<span style="            display: inline-flex; align-items: center; justify-content: center;            min-width: 14px; height: 14px; border-radius: 3px; background: #f59e0b;            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;          " title="Email: ${counts.email}">${counts.email}</span>`);
+                                          indicators.push(`<span style="
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 14px; height: 14px; border-radius: 3px; background: #f59e0b;
+            margin-right: 3px; font-size: 8px; font-weight: 600; color: white; line-height: 1;
+          " title="Email: ${counts.email}">${counts.email}</span>`);
         }
                                   if (counts.audio > 0) {
-                                          indicators.push(`<img src="${chrome.runtime.getURL('Images/audio-logo.png')}" style="            width: 14px;            height: 14px;            margin-right: 3px;            border-radius: 3px;            box-shadow: 0 2px 4px rgba(0,0,0,0.1);            border: 1px solid rgba(255,255,255,0.2);          " title="Audio: ${counts.audio}" />`);
+                                          indicators.push(`<img src="${chrome.runtime.getURL('Images/audio-logo.png')}" style="
+            width: 14px;
+            height: 14px;
+            margin-right: 3px;
+            border-radius: 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+          " title="Audio: ${counts.audio}" />`);
         }
       }
                           const theme = getThemeStyles();
@@ -1098,22 +1287,124 @@
                           const selectedBackground = isDarkMode ? `${tagColor}30` : `${tagColor}25`;
                           const selectedBorder = isDarkMode ? `${tagColor}60` : `${tagColor}50`;
                           const textColor = tagColor;
-                          return `<div class="taggle-tag-item" data-tag="${tag.name}" data-index="${index}" data-tag-color="${tagColor}" style="        padding: 4px 12px; cursor: pointer; border-radius: 16px;        background: ${baseBackground}; border: 1px solid ${baseBorder};        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);        font-weight: 500; font-size: 12px; color: ${textColor};        white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;      ">        <span style="          display: inline-block; width: 5px; height: 5px; border-radius: 50%;          background: ${tagColor}; margin-right: 3px; opacity: 0.9;        "></span>        @${tag.name}        ${indicators.length > 0 ? `          <span class="tag-indicators" data-tag-id="${tag.id}" style="display: inline-flex; align-items: center; gap: 2px; margin-left: 6px;">            ${
+                          return `<div class="taggle-tag-item" data-tag="${tag.name}" data-index="${index}" data-tag-color="${tagColor}" style="
+        padding: 4px 12px; cursor: pointer; border-radius: 16px;
+        background: ${baseBackground}; border: 1px solid ${baseBorder};
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 500; font-size: 12px; color: ${textColor};
+        white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+      ">
+        <span style="
+          display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+          background: ${tagColor}; margin-right: 3px; opacity: 0.9;
+        "></span>
+        @${tag.name}
+        ${indicators.length > 0 ? `
+          <span class="tag-indicators" data-tag-id="${tag.id}" style="display: inline-flex; align-items: center; gap: 2px; margin-left: 6px;">
+            ${
                           indicators.join('')
       }
-                              </span>        ` : ''}      </div>`;
+                              </span>
+        ` : ''}
+      </div>`;
     };
-                  tagDropdown.innerHTML = `      <div style="        padding: 10px 16px 8px 16px;        background: transparent;        border-bottom: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};        display: flex;        align-items: center;        justify-content: space-between;        gap: 12px;        border-radius: 12px 12px 0 0;      ">        <div style="display: flex; align-items: center; gap: 8px;">          <img src="${chrome.runtime.getURL('Images/noma-logo.png')}" style="            width: 28px;            height: 28px;            object-fit: contain;            cursor: pointer;          " title="Open Noma (Alt+T)" id="noma-logo-button" />          <span style="            font-size: 13px;            font-weight: 400;            font-family: 'Ranade', sans-serif;            color: ${isDarkMode ? '#ffffff' : '#000000'};            opacity: 0.8;          ">noma</span>        </div>        <div style="position: relative; display: inline-block;">          <svg style="            position: absolute;            left: 8px;            top: 50%;            transform: translateY(-50%);            width: 12px;            height: 12px;            opacity: 0.4;            pointer-events: none;          " viewBox="0 0 24 24" fill="none" stroke="${isDarkMode ? '#ffffff' : '#000000'}" stroke-width="2">            <circle cx="11" cy="11" r="8"></circle>            <path d="m21 21-4.35-4.35"></path>          </svg>          <input            type="text"            id="tag-search-input"            placeholder="Search your tags..."            style="              width: 120px;              padding: 3px 10px 3px 26px;              border: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'};              border-radius: 12px;              background: ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'};              color: ${isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'};              font-size: 10px;              outline: none;            "          />        </div>      </div>      <div id="tag-list-container" style="        padding: 12px 16px; display: flex; flex-direction: column; gap: 12px;        max-height: 280px; overflow-y: auto;        background: ${isDarkMode ? '#0a0a0a' : '#ffffff'};      ">        ${dynamicTags.length > 0 ? `          <div style="display: flex; flex-wrap: wrap; gap: 8px;">            ${
+                  tagDropdown.innerHTML = `
+      <div style="
+        padding: 10px 16px 8px 16px;
+        background: transparent;
+        border-bottom: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-radius: 12px 12px 0 0;
+      ">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img src="${chrome.runtime.getURL('Images/noma-logo.png')}" style="
+            width: 28px;
+            height: 28px;
+            object-fit: contain;
+            cursor: pointer;
+          " title="Open Noma (Alt+T)" id="noma-logo-button" />
+          <span style="
+            font-size: 13px;
+            font-weight: 400;
+            font-family: 'Ranade', sans-serif;
+            color: ${isDarkMode ? '#ffffff' : '#000000'};
+            opacity: 0.8;
+          ">noma</span>
+        </div>
+        <div style="position: relative; display: inline-block;">
+          <svg style="
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            opacity: 0.4;
+            pointer-events: none;
+          " viewBox="0 0 24 24" fill="none" stroke="${isDarkMode ? '#ffffff' : '#000000'}" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <input
+            type="text"
+            id="tag-search-input"
+            placeholder="Search your tags..."
+            style="
+              width: 120px;
+              padding: 3px 10px 3px 26px;
+              border: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'};
+              border-radius: 12px;
+              background: ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'};
+              color: ${isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'};
+              font-size: 10px;
+              outline: none;
+            "
+          />
+        </div>
+      </div>
+      <div id="tag-list-container" style="
+        padding: 12px 16px; display: flex; flex-direction: column; gap: 12px;
+        max-height: 280px; overflow-y: auto;
+        background: ${isDarkMode ? '#0a0a0a' : '#ffffff'};
+      ">
+        ${dynamicTags.length > 0 ? `
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${
                     dynamicTags.map((tag, index) => renderTag(tag,
       index,
       true)).join('')
     }
-                        </div>        ` : ''}        ${dynamicTags.length > 0 && regularTags.length > 0 ? `          <div style="            height: 1px; background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};            margin: 4px 0;          "></div>        ` : ''}        ${regularTags.length > 0 ? `          <div style="display: flex; flex-wrap: wrap; gap: 8px;">            ${
+                        </div>
+        ` : ''}
+        ${dynamicTags.length > 0 && regularTags.length > 0 ? `
+          <div style="
+            height: 1px; background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+            margin: 4px 0;
+          "></div>
+        ` : ''}
+        ${regularTags.length > 0 ? `
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${
                     regularTags.map((tag, index) => renderTag(tag,
       dynamicTags.length + index,
       false)).join('')
     }
-                        </div>        ` : ''}      </div>      <div style="        padding: 8px 16px;        background: ${getThemeStyles().footer.background};        border-top: 1px solid ${getThemeStyles().footer.borderColor};        font-size: 8px; color: ${getThemeStyles().text.muted};        text-align: center; backdrop-filter: blur(10px);      ">        ↑↓ Navigate • Enter Select • Esc Cancel • Ctrl+D Dark Mode      </div>    `;
+                        </div>
+        ` : ''}
+      </div>
+      <div style="
+        padding: 8px 16px;
+        background: ${getThemeStyles().footer.background};
+        border-top: 1px solid ${getThemeStyles().footer.borderColor};
+        font-size: 8px; color: ${getThemeStyles().text.muted};
+        text-align: center; backdrop-filter: blur(10px);
+      ">
+        ↑↓ Navigate • Enter Select • Esc Cancel • Ctrl+D Dark Mode
+      </div>
+    `;
                   positionDropdown(element,
     tagDropdown);
                   tagDropdown.style.display = 'block';
@@ -1131,19 +1422,46 @@
                   if (searchInput) {
                           searchInput.addEventListener('input', (e) => {
                                   const searchTerm = e.target.value.toLowerCase().trim();
-                                  const filteredDynamicTags = dynamicTags.filter(tag =>          tag.name.toLowerCase().includes(searchTerm)        );
-                                  const filteredRegularTags = regularTags.filter(tag =>          tag.name.toLowerCase().includes(searchTerm)        );
-                                  tagListContainer.innerHTML = `          ${filteredDynamicTags.length > 0 ? `            <div style="display: flex; flex-wrap: wrap; gap: 8px;">              ${
+                                  const filteredDynamicTags = dynamicTags.filter(tag =>
+          tag.name.toLowerCase().includes(searchTerm)
+        );
+                                  const filteredRegularTags = regularTags.filter(tag =>
+          tag.name.toLowerCase().includes(searchTerm)
+        );
+                                  tagListContainer.innerHTML = `
+          ${filteredDynamicTags.length > 0 ? `
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              ${
                                 filteredDynamicTags.map((tag, index) => renderTag(tag,
           index,
           true)).join('')
         }
-                                      </div>          ` : ''}          ${filteredDynamicTags.length > 0 && filteredRegularTags.length > 0 ? `            <div style="              height: 1px; background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};              margin: 4px 0;            "></div>          ` : ''}          ${filteredRegularTags.length > 0 ? `            <div style="display: flex; flex-wrap: wrap; gap: 8px;">              ${
+                                      </div>
+          ` : ''}
+          ${filteredDynamicTags.length > 0 && filteredRegularTags.length > 0 ? `
+            <div style="
+              height: 1px; background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+              margin: 4px 0;
+            "></div>
+          ` : ''}
+          ${filteredRegularTags.length > 0 ? `
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              ${
                                 filteredRegularTags.map((tag, index) => renderTag(tag,
           filteredDynamicTags.length + index,
           false)).join('')
         }
-                                      </div>          ` : ''}          ${filteredDynamicTags.length === 0 && filteredRegularTags.length === 0 ? `            <div style="              text-align: center;              padding: 20px;              color: ${isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'};              font-size: 12px;            ">No tags found</div>          ` : ''}        `;
+                                      </div>
+          ` : ''}
+          ${filteredDynamicTags.length === 0 && filteredRegularTags.length === 0 ? `
+            <div style="
+              text-align: center;
+              padding: 20px;
+              color: ${isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'};
+              font-size: 12px;
+            ">No tags found</div>
+          ` : ''}
+        `;
                                   attachTagEventListeners();
                                   selectedTagIndex = 0;
                                   updateTagSelection();
@@ -1262,18 +1580,118 @@
     }
                   let infoContent = '';
                   if (tag.isCalendarTag) {
-                          infoContent = `        <div style="          display: flex;          align-items: center;          gap: 8px;          margin-bottom: 8px;        ">          <img src="${chrome.runtime.getURL('Images/gc-logo.png')}" style="            width: 16px;            height: 16px;            border-radius: 2px;          " />          <div style="            font-size: 10px;            color: #fff;            font-weight: 600;          ">Google Calendar</div>        </div>        <div style="          font-size: 9px;          color: #ccc;          line-height: 1.4;          text-align: center;        ">Connected to your Google Calendar</div>      `;
+                          infoContent = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        ">
+          <img src="${chrome.runtime.getURL('Images/gc-logo.png')}" style="
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+          " />
+          <div style="
+            font-size: 10px;
+            color: #fff;
+            font-weight: 600;
+          ">Google Calendar</div>
+        </div>
+        <div style="
+          font-size: 9px;
+          color: #ccc;
+          line-height: 1.4;
+          text-align: center;
+        ">Connected to your Google Calendar</div>
+      `;
     }
               else if (tag.isGmailTag) {
-                          infoContent = `        <div style="          display: flex;          align-items: center;          gap: 8px;          margin-bottom: 8px;        ">          <img src="${chrome.runtime.getURL('Images/email-logo.png')}" style="            width: 16px;            height: 16px;            border-radius: 2px;          " />          <div style="            font-size: 10px;            color: #fff;            font-weight: 600;          ">Gmail</div>        </div>        <div style="          font-size: 9px;          color: #ccc;          line-height: 1.4;          text-align: center;        ">Connected to your Gmail</div>      `;
+                          infoContent = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        ">
+          <img src="${chrome.runtime.getURL('Images/email-logo.png')}" style="
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+          " />
+          <div style="
+            font-size: 10px;
+            color: #fff;
+            font-weight: 600;
+          ">Gmail</div>
+        </div>
+        <div style="
+          font-size: 9px;
+          color: #ccc;
+          line-height: 1.4;
+          text-align: center;
+        ">Connected to your Gmail</div>
+      `;
     }
               else if (tag.isNotionTag) {
-                          infoContent = `        <div style="          display: flex;          align-items: center;          gap: 8px;          margin-bottom: 8px;        ">          <img src="${chrome.runtime.getURL('Images/not-logo.png')}" style="            width: 16px;            height: 16px;            border-radius: 2px;          " />          <div style="            font-size: 10px;            color: #fff;            font-weight: 600;          ">Notion</div>        </div>        <div style="          font-size: 9px;          color: #ccc;          line-height: 1.4;          text-align: center;        ">Connected to your Notion page</div>      `;
+                          infoContent = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        ">
+          <img src="${chrome.runtime.getURL('Images/not-logo.png')}" style="
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+          " />
+          <div style="
+            font-size: 10px;
+            color: #fff;
+            font-weight: 600;
+          ">Notion</div>
+        </div>
+        <div style="
+          font-size: 9px;
+          color: #ccc;
+          line-height: 1.4;
+          text-align: center;
+        ">Connected to your Notion page</div>
+      `;
     }
               else if (tag.isPinterestTag) {
-                          infoContent = `        <div style="          display: flex;          align-items: center;          gap: 8px;          margin-bottom: 8px;        ">          <img src="${chrome.runtime.getURL('Images/pin-logo.png')}" style="            width: 16px;            height: 16px;            border-radius: 2px;          " />          <div style="            font-size: 10px;            color: #fff;            font-weight: 600;          ">Pinterest</div>        </div>        <div style="          font-size: 9px;          color: #ccc;          line-height: 1.4;          text-align: center;        ">Connected to your Pinterest board</div>      `;
+                          infoContent = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        ">
+          <img src="${chrome.runtime.getURL('Images/pin-logo.png')}" style="
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+          " />
+          <div style="
+            font-size: 10px;
+            color: #fff;
+            font-weight: 600;
+          ">Pinterest</div>
+        </div>
+        <div style="
+          font-size: 9px;
+          color: #ccc;
+          line-height: 1.4;
+          text-align: center;
+        ">Connected to your Pinterest board</div>
+      `;
     }
-                  contextPreviewPanel.innerHTML = `      <div style="padding: 4px;">        ${infoContent}      </div>    `;
+                  contextPreviewPanel.innerHTML = `
+      <div style="padding: 4px;">
+        ${infoContent}
+      </div>
+    `;
                   const tagRect = tagElement.getBoundingClientRect();
                   const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
                   const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
@@ -1299,7 +1717,23 @@
       contexts);
                           if (!contexts.length) {
                                   console.log("Taggle: No contexts found, showing empty message instead");
-                                  contextPreviewPanel.innerHTML = `          <div style="            font-size: 9px;            color: #ccc;            margin-bottom: 6px;            font-weight: 600;            text-transform: uppercase;            letter-spacing: 0.5px;          ">Empty Tag</div>          <div style="            font-size: 10px;            color: #999;            text-align: center;            padding: 8px;            font-style: italic;          ">No contexts saved yet.<br>Right-click content to save to this tag.</div>        `;
+                                  contextPreviewPanel.innerHTML = `
+          <div style="
+            font-size: 9px;
+            color: #ccc;
+            margin-bottom: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          ">Empty Tag</div>
+          <div style="
+            font-size: 10px;
+            color: #999;
+            text-align: center;
+            padding: 8px;
+            font-style: italic;
+          ">No contexts saved yet.<br>Right-click content to save to this tag.</div>
+        `;
                                   const tagRect = tagElement.getBoundingClientRect();
                                   const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
                                   const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
@@ -1333,9 +1767,95 @@
         }
                                   const isLocalFile = ctx.url && ctx.url.startsWith('file://');
                                   const canOpenLink = ctx.url && !isLocalFile;
-                                  return `          <div class="context-item" data-context-id="${ctx.id}" data-url="${ctx.url || ''}" style="            display: flex;            align-items: center;            gap: 4px;            padding: 3px 6px;            margin: 2px 0;            border-radius: 12px;            background: ${isExcluded ? 'rgba(248, 113, 113, 0.15)' : color + '15'};            border: 1px solid ${isExcluded ? 'rgba(248, 113, 113, 0.4)' : color + '30'};            opacity: 1;            transition: all 0.2s ease;            cursor: ${canOpenLink ? 'pointer' : 'default'};            ${isExcluded ? 'position: relative;' : ''}            ${isLocalFile ? 'border-style: dashed;' : ''}          ">            ${isExcluded ? `              <div style="                position: absolute;                top: 50%;                left: 0;                right: 0;                height: 1px;                background: #f87171;                z-index: 1;                pointer-events: none;              "></div>            ` : ''}            <span style="              background: ${color};              color: white;              font-size: 7px;              font-weight: 700;              padding: 1px 3px;              border-radius: 3px;              min-width: 18px;              text-align: center;              z-index: 2;              position: relative;            ">${typeLabel}</span>            <span style="              flex: 1;              font-size: 10px;              color: ${isExcluded ? '#f87171' : 'white'};              overflow: hidden;              text-overflow: ellipsis;              white-space: nowrap;              z-index: 2;              position: relative;            ">${displayText}</span>            <button class="exclude-btn" data-context-id="${ctx.id}" style="              background: ${isExcluded ? '#000' : 'none'};              color: ${isExcluded ? '#fff' : '#f87171'};              border: 1px solid ${isExcluded ? '#000' : '#f87171'};              border-radius: 50%;              width: 12px;              height: 12px;              font-size: 8px;              font-weight: bold;              cursor: pointer;              display: flex;              align-items: center;              justify-content: center;              line-height: 1;              margin-left: 2px;              z-index: 2;              position: relative;            ">${isExcluded ? '✓' : '×'}</button>          </div>        `;
+                                  return `
+          <div class="context-item" data-context-id="${ctx.id}" data-url="${ctx.url || ''}" style="
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 6px;
+            margin: 2px 0;
+            border-radius: 12px;
+            background: ${isExcluded ? 'rgba(248, 113, 113, 0.15)' : color + '15'};
+            border: 1px solid ${isExcluded ? 'rgba(248, 113, 113, 0.4)' : color + '30'};
+            opacity: 1;
+            transition: all 0.2s ease;
+            cursor: ${canOpenLink ? 'pointer' : 'default'};
+            ${isExcluded ? 'position: relative;' : ''}
+            ${isLocalFile ? 'border-style: dashed;' : ''}
+          ">
+            ${isExcluded ? `
+              <div style="
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                height: 1px;
+                background: #f87171;
+                z-index: 1;
+                pointer-events: none;
+              "></div>
+            ` : ''}
+            <span style="
+              background: ${color};
+              color: white;
+              font-size: 7px;
+              font-weight: 700;
+              padding: 1px 3px;
+              border-radius: 3px;
+              min-width: 18px;
+              text-align: center;
+              z-index: 2;
+              position: relative;
+            ">${typeLabel}</span>
+            <span style="
+              flex: 1;
+              font-size: 10px;
+              color: ${isExcluded ? '#f87171' : 'white'};
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              z-index: 2;
+              position: relative;
+            ">${displayText}</span>
+            <button class="exclude-btn" data-context-id="${ctx.id}" style="
+              background: ${isExcluded ? '#000' : 'none'};
+              color: ${isExcluded ? '#fff' : '#f87171'};
+              border: 1px solid ${isExcluded ? '#000' : '#f87171'};
+              border-radius: 50%;
+              width: 12px;
+              height: 12px;
+              font-size: 8px;
+              font-weight: bold;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              line-height: 1;
+              margin-left: 2px;
+              z-index: 2;
+              position: relative;
+            ">${isExcluded ? '✓' : '×'}</button>
+          </div>
+        `;
       }).join('');
-                          contextPreviewPanel.innerHTML = `        <div style="          font-size: 9px;          color: #ccc;          margin-bottom: 6px;          font-weight: 600;          text-transform: uppercase;          letter-spacing: 0.5px;        ">Contexts (${contexts.length})</div>        ${contextTags}        <div style="          font-size: 8px;          color: #999;          margin-top: 6px;          text-align: center;          font-style: italic;        ">Click to open • × exclude • ✓ include</div>      `;
+                          contextPreviewPanel.innerHTML = `
+        <div style="
+          font-size: 9px;
+          color: #ccc;
+          margin-bottom: 6px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        ">Contexts (${contexts.length})</div>
+        ${contextTags}
+        <div style="
+          font-size: 8px;
+          color: #999;
+          margin-top: 6px;
+          text-align: center;
+          font-style: italic;
+        ">Click to open • × exclude • ✓ include</div>
+      `;
                           const tagRect = tagElement.getBoundingClientRect();
                           const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
                           const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
@@ -1398,7 +1918,42 @@
                           contextPreviewPanel = createContextPreviewPanel();
                           console.log("Taggle: Created new context preview panel");
     }
-                  contextPreviewPanel.innerHTML = `      <div style="        font-size: 9px;        color: #6b7280;        margin-bottom: 6px;        font-weight: 600;        text-transform: uppercase;        letter-spacing: 0.5px;      ">TEST PREVIEW</div>      <div style="        display: flex;        align-items: center;        gap: 6px;        padding: 3px 6px;        margin: 2px 0;        border-radius: 12px;        background: #3b82f615;        border: 1px solid #3b82f630;      ">        <span style="          background: #3b82f6;          color: white;          font-size: 7px;          font-weight: 700;          padding: 1px 3px;          border-radius: 3px;          min-width: 18px;          text-align: center;        ">TEST</span>        <span style="          flex: 1;          font-size: 10px;          color: #374151;        ">This is a test preview panel</span>      </div>    `;
+                  contextPreviewPanel.innerHTML = `
+      <div style="
+        font-size: 9px;
+        color: #6b7280;
+        margin-bottom: 6px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      ">TEST PREVIEW</div>
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 6px;
+        margin: 2px 0;
+        border-radius: 12px;
+        background: #3b82f615;
+        border: 1px solid #3b82f630;
+      ">
+        <span style="
+          background: #3b82f6;
+          color: white;
+          font-size: 7px;
+          font-weight: 700;
+          padding: 1px 3px;
+          border-radius: 3px;
+          min-width: 18px;
+          text-align: center;
+        ">TEST</span>
+        <span style="
+          flex: 1;
+          font-size: 10px;
+          color: #374151;
+        ">This is a test preview panel</span>
+      </div>
+    `;
                   const tagRect = tagElement.getBoundingClientRect();
                   const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
                   const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
@@ -1461,10 +2016,12 @@
                                   try {
                                           const selection = window.getSelection();
                                           const range = document.createRange();
-                                          const walker = document.createTreeWalker(            currentElement,
+                                          const walker = document.createTreeWalker(
+            currentElement,
                         NodeFilter.SHOW_TEXT,
                         null,
-                        false          );
+                        false
+          );
                                           let currentPos = 0;
                                           let targetNode = null;
                                           let targetOffset = 0;
@@ -1583,12 +2140,18 @@
                                   const textBeforeCaret = preCaretRange.cloneContents();
                                   const tempDiv = document.createElement('div');
                                   tempDiv.appendChild(textBeforeCaret);
-                                  let textContent = tempDiv.innerHTML          .replace(/<div[^>]*>/gi,
-        '\n')          .replace(/<br[^>]*>/gi,
-        '\n')          .replace(/<p[^>]*>/gi,
-        '\n')          .replace(/<\/div>/gi,
-        '')          .replace(/<\/p>/gi,
-        '')          .replace(/<[^>]*>/g,
+                                  let textContent = tempDiv.innerHTML
+          .replace(/<div[^>]*>/gi,
+        '\n')
+          .replace(/<br[^>]*>/gi,
+        '\n')
+          .replace(/<p[^>]*>/gi,
+        '\n')
+          .replace(/<\/div>/gi,
+        '')
+          .replace(/<\/p>/gi,
+        '')
+          .replace(/<[^>]*>/g,
         '');
                                   const tempTextDiv = document.createElement('div');
                                   tempTextDiv.innerHTML = textContent;
@@ -1620,7 +2183,9 @@
                           console.log("Taggle: activeEditable() - No active element found");
                           return null;
     }
-                  if (el.isContentEditable ||        el.tagName === 'TEXTAREA' ||        (el.tagName === 'INPUT' && (el.type || "").toLowerCase() !== "password")) {
+                  if (el.isContentEditable ||
+        el.tagName === 'TEXTAREA' ||
+        (el.tagName === 'INPUT' && (el.type || "").toLowerCase() !== "password")) {
                           console.log("Taggle: activeEditable() - Found valid editable element:", el);
                           return el;
     }
@@ -1630,12 +2195,18 @@
           function getText(el) {
                   if (!el) return "";
                   if (el.isContentEditable) {
-                          let textContent = el.innerHTML        .replace(/<div[^>]*>/gi,
-      '\n')        .replace(/<br[^>]*>/gi,
-      '\n')        .replace(/<p[^>]*>/gi,
-      '\n')        .replace(/<\/div>/gi,
-      '')        .replace(/<\/p>/gi,
-      '')        .replace(/<[^>]*>/g,
+                          let textContent = el.innerHTML
+        .replace(/<div[^>]*>/gi,
+      '\n')
+        .replace(/<br[^>]*>/gi,
+      '\n')
+        .replace(/<p[^>]*>/gi,
+      '\n')
+        .replace(/<\/div>/gi,
+      '')
+        .replace(/<\/p>/gi,
+      '')
+        .replace(/<[^>]*>/g,
       '');
                           const tempTextDiv = document.createElement('div');
                           tempTextDiv.innerHTML = textContent;
@@ -1759,7 +2330,21 @@
                           floatingSpinner.remove();
     }
                   floatingSpinner = document.createElement('div');
-                  floatingSpinner.style.cssText = `      position: fixed;      top: 50%;      left: 50%;      transform: translate(-50%, -50%);      background: rgba(0, 0, 0, 0.85);      color: #fff;      padding: 12px 16px;      border-radius: 8px;      font-family: 'Ranade', system-ui;      font-size: 18px;      z-index: 999999;      pointer-events: none;      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);    `;
+                  floatingSpinner.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: 'Ranade', system-ui;
+      font-size: 18px;
+      z-index: 999999;
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    `;
                   document.body.appendChild(floatingSpinner);
                   let i = 0;
                   const id = setInterval(() => {
@@ -1944,7 +2529,20 @@
       }
                     else {
                                   console.log("Taggle: CAPTURE - No active editable element found, trying to find any editable element");
-                                  const fallbackElement = document.querySelector(`          input[type="text"],          input:not([type]),          input[type="search"],          input[type="email"],          input[type="url"],          textarea,          [contenteditable="true"],          [role="textbox"],          .ql-editor,          .DraftEditor-editorContainer,          .notranslate[contenteditable],          #main div[contenteditable="true"]        `.replace(/\s+/g,
+                                  const fallbackElement = document.querySelector(`
+          input[type="text"],
+          input:not([type]),
+          input[type="search"],
+          input[type="email"],
+          input[type="url"],
+          textarea,
+          [contenteditable="true"],
+          [role="textbox"],
+          .ql-editor,
+          .DraftEditor-editorContainer,
+          .notranslate[contenteditable],
+          #main div[contenteditable="true"]
+        `.replace(/\s+/g,
         ' ').trim());
                                   if (fallbackElement) {
                                           console.log("Taggle: CAPTURE - Found fallback editable element:", fallbackElement);
@@ -1987,7 +2585,20 @@
       }
                     else {
                                   console.log("Taggle: No active editable element found, trying to find any editable element");
-                                  const fallbackElement = document.querySelector(`          input[type="text"],          input:not([type]),          input[type="search"],          input[type="email"],          input[type="url"],          textarea,          [contenteditable="true"],          [role="textbox"],          .ql-editor,          .DraftEditor-editorContainer,          .notranslate[contenteditable],          #main div[contenteditable="true"]        `.replace(/\s+/g,
+                                  const fallbackElement = document.querySelector(`
+          input[type="text"],
+          input:not([type]),
+          input[type="search"],
+          input[type="email"],
+          input[type="url"],
+          textarea,
+          [contenteditable="true"],
+          [role="textbox"],
+          .ql-editor,
+          .DraftEditor-editorContainer,
+          .notranslate[contenteditable],
+          #main div[contenteditable="true"]
+        `.replace(/\s+/g,
         ' ').trim());
                                   if (fallbackElement) {
                                           console.log("Taggle: Found fallback editable element:", fallbackElement);
@@ -2054,6 +2665,218 @@
                           return;
     }
   });
+          async function handleImageGeneration(el, userPrompt, contextData, beforeTagText) {
+                  try {
+                          const result = await chrome.storage.local.get('noma-gemini-api-key');
+                          const apiKey = result['noma-gemini-api-key'];
+                          if (!apiKey) {
+                                  toast("Please add your Gemini API key in Noma settings to generate images.");
+                                  return;
+      }
+                          if (el.isContentEditable) {
+                                  try {
+                                          el.focus();
+                                          el.textContent = '';
+                                          el.innerText = '';
+                                          const selection = window.getSelection();
+                                          const range = document.createRange();
+                                          range.selectNodeContents(el);
+                                          selection.removeAllRanges();
+                                          selection.addRange(range);
+                                          const clipboardData = new DataTransfer();
+                                          clipboardData.setData('text/plain', '');
+                                          const pasteEvent = new ClipboardEvent('paste', {
+                                                  bubbles: true,
+                                cancelable: true,
+                                clipboardData: clipboardData,
+          });
+                                          el.dispatchEvent(pasteEvent);
+                                          el.dispatchEvent(new Event('input', { bubbles: true }));
+                                          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+                                catch (error) {
+                                          console.warn("Noma Image Gen: Could not clear contentEditable:", error);
+        }
+      }
+                          const stopSpin = beforeTagText ? startPartialSpinner(el, beforeTagText) : startSpinner(el);
+                          let imagePrompt = userPrompt;
+                          if (contextData && contextData.textBlob) {
+                                  imagePrompt = `${contextData.textBlob}\n\nUser Request: ${userPrompt}`;
+                                  console.log("Noma Image Gen: Using context with prompt");
+      }
+                          console.log("Noma Image Gen: Generating image...");
+                          progressToast("Generating image with Gemini...");
+                          const parts = [{ text: imagePrompt }];
+                          const contextImages = (contextData && contextData.images) ? contextData.images : [];
+                          for (const imageFile of contextImages) {
+                                  try {
+                                          const base64Data = await fileToBase64(imageFile);
+                                          const mimeType = imageFile.type || 'image/jpeg';
+                                          parts.push({
+                                                  inline_data: {
+                                                          mime_type: mimeType,
+                                data: base64Data
+                          }
+                        });
+        }
+                                catch (imgError) {
+                                          console.warn('Noma Image Gen: Failed to process context image:', imgError);
+        }
+      }
+                          const requestBody = {
+                                  contents: [{
+                                          parts: parts
+        }],
+                generationConfig: {
+                                          temperature: 1.0,
+                      topK: 40,
+                      topP: 0.95,
+                      maxOutputTokens: 8192,
+        }
+      };
+                          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`, {
+                                  method: 'POST',
+                headers: {
+                                          'Content-Type': 'application/json',
+        },
+                body: JSON.stringify(requestBody)
+      });
+                          if (!response.ok) {
+                                  const errorData = await response.json().catch(() => ({}));
+                                  throw new Error(`API request failed: ${response.status} ${response.statusText}. ${errorData.error?.message || ''}`);
+      }
+                          const data = await response.json();
+                          console.log('Noma Image Gen: API response received', JSON.stringify(data).substring(0, 500));
+                          if (!data.candidates || data.candidates.length === 0) {
+                                  throw new Error('No image generated in response');
+      }
+                          const candidate = data.candidates[0];
+                          console.log('Noma Image Gen: Candidate structure:', JSON.stringify(candidate).substring(0, 500));
+                          if (!candidate.content || !candidate.content.parts) {
+                                  throw new Error('Invalid response structure');
+      }
+                          let base64Data = null;
+                          let mimeType = 'image/png';
+                          for (const part of candidate.content.parts) {
+                                  console.log('Noma Image Gen: Checking part:', Object.keys(part));
+                                  if (part.inlineData && part.inlineData.data) {
+                                          base64Data = part.inlineData.data;
+                                          mimeType = part.inlineData.mimeType || 'image/png';
+                                          console.log('Noma Image Gen: Found image data, mime:', mimeType);
+                                          break;
+        }
+                                else if (part.inline_data && part.inline_data.data) {
+                                          base64Data = part.inline_data.data;
+                                          mimeType = part.inline_data.mime_type || 'image/png';
+                                          console.log('Noma Image Gen: Found image data (snake_case), mime:', mimeType);
+                                          break;
+        }
+                                else if (part.text) {
+                                          console.log('Noma Image Gen: Part contains text:', part.text.substring(0, 100));
+        }
+      }
+                          if (!base64Data) {
+                                  console.error('Noma Image Gen: Full response:', JSON.stringify(data, null, 2));
+                                  throw new Error('No image data found in response. The model may have returned text instead of an image. Try a more specific image generation prompt.');
+      }
+                          stopSpin();
+                          progressToast("Inserting image...");
+                          const inserted = await insertImageIntoElement(el, base64Data, mimeType);
+                          if (inserted) {
+                                  progressToast("Image generated successfully!");
+                                  console.log("Noma Image Gen: Image inserted successfully");
+      }
+                    else {
+                                  progressToast("Image downloaded (paste not supported in this field)");
+                                  console.log("Noma Image Gen: Image downloaded as fallback");
+      }
+                          setTimeout(() => progressToast(""), 2000);
+    }
+              catch (error) {
+                          console.error("Noma Image Gen: Failed:", error);
+                          toast(`Image generation failed: ${error.message}`);
+                          if (beforeTagText) {
+                                  setText(el, beforeTagText);
+      }
+    }
+  }
+          function fileToBase64(file) {
+                  return new Promise((resolve, reject) => {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                                  const base64 = reader.result.split(',')[1];
+                                  resolve(base64);
+      };
+                          reader.onerror = reject;
+                          reader.readAsDataURL(file);
+    });
+  }
+          function base64ToBlob(base64Data, mimeType) {
+                  const byteCharacters = atob(base64Data);
+                  const byteNumbers = new Array(byteCharacters.length);
+                  for (let i = 0; i < byteCharacters.length; i++) {
+                          byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+                  const byteArray = new Uint8Array(byteNumbers);
+                  return new Blob([byteArray], { type: mimeType });
+  }
+          async function insertImageIntoElement(element, base64Data, mimeType) {
+                  const dataUrl = `data:${mimeType};base64,${base64Data}`;
+                  if (element.isContentEditable) {
+                          element.focus();
+                          const img = document.createElement('img');
+                          img.src = dataUrl;
+                          img.style.maxWidth = '100%';
+                          img.style.height = 'auto';
+                          const selection = window.getSelection();
+                          if (selection.rangeCount > 0) {
+                                  const range = selection.getRangeAt(0);
+                                  range.deleteContents();
+                                  range.insertNode(img);
+                                  range.collapse(false);
+                                  selection.removeAllRanges();
+                                  selection.addRange(range);
+      }
+                    else {
+                                  element.appendChild(img);
+      }
+                          element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                          element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                          console.log('Noma Image Gen: Image inserted into contentEditable');
+                          return true;
+    }
+              else if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
+                          try {
+                                  const blob = base64ToBlob(base64Data, mimeType);
+                                  const clipboardItem = new ClipboardItem({ [mimeType]: blob });
+                                  await navigator.clipboard.write([clipboardItem]);
+                                  console.log('Noma Image Gen: Image copied to clipboard');
+                                  element.focus();
+                                  const pasteEvent = new ClipboardEvent('paste', {
+                                          bubbles: true,
+                      cancelable: true,
+                      clipboardData: new DataTransfer()
+        });
+                                  element.dispatchEvent(pasteEvent);
+                                  return true;
+      }
+                    catch (clipboardError) {
+                                  console.warn('Noma Image Gen: Clipboard method failed:', clipboardError);
+                                  const blob = base64ToBlob(base64Data, mimeType);
+                                  const url = URL.createObjectURL(blob);
+                                  const link = document.createElement('a');
+                                  link.href = url;
+                                  link.download = `noma-generated-${Date.now()}.png`;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                  URL.revokeObjectURL(url);
+                                  console.log('Noma Image Gen: Image downloaded as fallback');
+                                  return false;
+      }
+    }
+                  return false;
+  }
           document.addEventListener("keydown", async (e) => {
                   if (e.key !== " " || !(e.ctrlKey || e.metaKey)) return;
                     let el = activeEditable();
@@ -2071,6 +2894,20 @@
                   let hasImages = false;
                   if (tagInfo) {
                           console.log("Taggle: Found @tag in text:", tagInfo);
+                          if (isImageGenerationRequest(tagInfo.userPrompt)) {
+                                  console.log("Noma Image Gen: Detected 'Create' keyword, triggering image generation");
+                                  const tag = await findTagByName(tagInfo.tagName);
+                                  beforeTagText = tagInfo.beforeTag;
+                                  if (!tag) {
+                                          console.log("Noma Image Gen: Tag not found, generating without context");
+                                          await handleImageGeneration(el, tagInfo.userPrompt, null, beforeTagText);
+                                          return;
+        }
+                                  console.log("Noma Image Gen: Found tag, building context");
+                                  contextData = await buildContextData(tag.id);
+                                  await handleImageGeneration(el, tagInfo.userPrompt, contextData, beforeTagText);
+                                  return;
+      }
                           const tag = await findTagByName(tagInfo.tagName);
                           beforeTagText = tagInfo.beforeTag;
                           if (!tag) {
@@ -2107,7 +2944,9 @@
                 tag.id,
                 3);
                                                                 if (ragResults && ragResults.length > 0) {
-                                                                        const relevantContext = ragResults.map((result, index) =>                  `[Relevant Context ${index + 1} (similarity: ${result.score.toFixed(2)})]\n${result.chunk.text}`                ).join('\n\n');
+                                                                        const relevantContext = ragResults.map((result, index) =>
+                  `[Relevant Context ${index + 1} (similarity: ${result.score.toFixed(2)})]\n${result.chunk.text}`
+                ).join('\n\n');
                                                                         console.log(`Taggle RAG: Found ${ragResults.length} relevant chunks`);
                                                                         console.log("Taggle RAG: Relevant context preview:",
                   relevantContext.substring(0,

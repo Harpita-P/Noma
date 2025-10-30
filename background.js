@@ -210,7 +210,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       '.opus',
       '.webm'];
                   const isAudioFile = audioExtensions.some(ext => audioUrl.toLowerCase().includes(ext));
-                  const isGmailAttachment = audioUrl.includes('mail.google.com') &&                                (audioUrl.includes('view=att') || audioUrl.includes('&attid='));
+                  const isGmailAttachment = audioUrl.includes('mail.google.com') &&
+                                (audioUrl.includes('view=att') || audioUrl.includes('&attid='));
                   if (info.linkUrl && !isAudioFile && !isGmailAttachment) {
                         console.log("Noma: Link is not an audio file, skipping");
                         return;
