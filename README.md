@@ -1,5 +1,5 @@
 
-<img width="1920" height="1080" alt="taggle" src="https://github.com/user-attachments/assets/309c9037-52f0-44d9-97b9-ec865a73e3db" />
+<img width="1920" height="1080" alt="1" src="https://github.com/user-attachments/assets/1806bf36-4825-4d36-8451-51021b5ada0e" />
 
 **Noma** is a browser-native AI layer that sits in your cursor. Right-click to capture **text**, **images**, or **short audio** from any page, or pull structured data from connected apps (**Notion, Gmail, Pinterest, Calendar**). Noma turns that context into portable **tags** and injects them into your AI prompt **inline** - so you can paste answers directly where you work.
 
