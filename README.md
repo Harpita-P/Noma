@@ -1,7 +1,7 @@
 
 <img src="Images/Noma-Main.png" alt="Noma" width="1920"/>
 
-> **[View Project on Devpost](https://devpost.com/software/noma-yjpsrf)**
+> **[View Project on Devpost - Submitted to Google Chrome Built-in AI Challenge 2025](https://devpost.com/software/noma-yjpsrf)**
 
 **Noma** is a chrome extension that brings context-aware AI to your cursor. Through **curated tags**, it brings your **personal context** – ideas you save while browsing, Notion pages, Pinterest boards, docs, even audio notes – straight into the conversation, wherever you’re working. No switching, no searching, no starting from scratch. Just **inline AI** that finally understands what you mean.
 
