@@ -37,12 +37,12 @@ To unlock Noma's full capabilities, you'll need to configure API keys in the ext
 <img src="Images/Noma%20Settings.png" alt="Noma Settings" width="500"/>
 
 ### OpenAI API Key
-- **Purpose**: Enables RAG (semantic search) for large contexts (25k+ characters) & Whisper for audio transcription
+- **Purpose**: Enables RAG (semantic search) for large contexts (25k+ characters)
 - **Get it**: [OpenAI Platform](https://platform.openai.com/api-keys)
 - **Setup**: Click Noma icon → Settings → Paste key in "OpenAI API Key" field → Save
 
 ### Gemini Developer API Key
-- **Purpose**: Enables text-to-image generation via the `Create` keyword
+- **Purpose**: Enables text-to-image generation via the `Create` keyword & audio transcription
 - **Get it**: [Google AI Studio](https://aistudio.google.com/app/apikey)
 - **Setup**: Click Noma icon → Settings → Paste key in "Gemini API Key" field → Save
 - **Note**: Requires billing enabled for image generation

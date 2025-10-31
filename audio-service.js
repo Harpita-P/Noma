@@ -1,62 +1,35 @@
 const AudioService = {
       async transcribeAudio(audioBlob, language = 'en') {
             try {
-                  console.log('Noma Audio: Starting Whisper transcription for audio blob:', {
-                        size: audioBlob.size,
-                  type: audioBlob.type,
-                  language
+                  const result = await chrome.storage.local.get('noma-gemini-api-key');
+                  const apiKey = result['noma-gemini-api-key'];
+                  if (!apiKey) {
+                        throw new Error('Gemini API key not found. Please add your API key in the extension options.');
+      }
+                  const base64Audio = await this.blobToBase64(audioBlob);
+                  const mimeType = audioBlob.type || 'audio/mpeg';
+                  const requestBody = {
+                        contents: [{
+                              parts: [
+                                    {
+                                          text: "Transcribe this audio file. Provide only the transcription text without any additional commentary."
+            },
+                                    {
+                                          inline_data: {
+                                                mime_type: mimeType,
+                                          data: base64Audio
+              }
+            }
+          ]
+        }]
+      };
+                  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                  headers: {
+                              'Content-Type': 'application/json'
+        },
+                  body: JSON.stringify(requestBody)
       });
-                  const { whisperApiKey } = await chrome.storage.local.get('whisperApiKey');
-                  if (!whisperApiKey) {
-                        throw new Error('OpenAI API key not found. Please add your API key in the extension options.');
-      }
-                  const formData = new FormData();
-                  let extension = 'mp3';
-                    if (audioBlob.type.includes('m4a') || audioBlob.type.includes('mp4')) {
-                        extension = 'm4a';
-      }
-            else if (audioBlob.type.includes('wav')) {
-                        extension = 'wav';
-      }
-            else if (audioBlob.type.includes('webm')) {
-                        extension = 'webm';
-      }
-            else if (audioBlob.type.includes('mpeg') || audioBlob.type.includes('mp3')) {
-                        extension = 'mp3';
-      }
-                  const audioFile = new File([audioBlob],
-      `audio.${extension}`,
-      {
-                type: audioBlob.type
-      });
-                  formData.append('file',
-      audioFile);
-                  formData.append('model',
-      'whisper-1');
-                  formData.append('language',
-      language);
-                  formData.append('response_format',
-      'text');
-                  console.log('Noma Audio: Sending to Whisper API...', {
-                        fileSize: audioBlob.size,
-                  fileType: audioBlob.type,
-                  extension: extension
-      });
-                  let response;
-                  try {
-                        response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-                              method: 'POST',
-                      headers: {
-                                    'Authorization': `Bearer ${whisperApiKey}`
-          },
-                      body: formData
-        });
-      }
-            catch (fetchError) {
-                        console.error('Noma Audio: Fetch error:', fetchError);
-                        throw new Error(`Network error: ${fetchError.message}`);
-      }
-                  console.log('Noma Audio: Response status:', response.status);
                   if (!response.ok) {
                         let errorData;
                         try {
@@ -69,33 +42,24 @@ const AudioService = {
             }
           };
         }
-                        console.error('Noma Audio: API error:', errorData);
-                        throw new Error(          `Whisper API error (${response.status}): ${errorData.error?.message || response.statusText}`        );
+                        throw new Error(          `Gemini API error (${response.status}): ${errorData.error?.message || response.statusText}`        );
       }
-                  let transcription;
-                  try {
-                        transcription = await response.text();
-                        console.log('Noma Audio: Raw response:', transcription);
+                  const data = await response.json();
+                  const transcription = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                  if (!transcription) {
+                        throw new Error('No transcription returned from Gemini API');
       }
-            catch (textError) {
-                        console.error('Noma Audio: Failed to read response text:', textError);
-                        throw new Error('Failed to read transcription response');
-      }
-                  console.log('Noma Audio: Transcription completed:',
-      transcription.substring(0,
-      100) + '...');
                   return transcription.trim();
     }
         catch (error) {
-                  console.error('Noma Audio: Transcription error:', error);
                   if (error.message.includes('API key not found')) {
                         throw error;
       }
                   if (error.message.includes('401')) {
-                        throw new Error(          'Invalid OpenAI API key. Please check your API key in the extension options.'        );
+                        throw new Error(          'Invalid Gemini API key. Please check your API key in the extension options.'        );
       }
                   if (error.message.includes('429')) {
-                        throw new Error(          'OpenAI API rate limit exceeded. Please try again in a moment.'        );
+                        throw new Error(          'Gemini API rate limit exceeded. Please try again in a moment.'        );
       }
                   throw new Error('Transcription failed: ' + error.message);
     }
