@@ -11,7 +11,8 @@ By default, Noma runs **on-device** with **Gemini Nano** and uses the **Multimod
 
 ## Installation
 
-Noma is an **unpublished Chrome extension**, so testing requires a local installation. Go to [TESTING_NOMA.md](TESTING_NOMA.md) to follow the setup instructions.
+Noma is an **unpublished Chrome extension**, so testing requires a local installation. Please clone the repository, and load the extension into Chrome.
+Go to [TESTING_NOMA.md](TESTING_NOMA.md) to follow the setup instructions.
 
 ---
 
