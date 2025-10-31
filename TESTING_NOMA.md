@@ -72,14 +72,14 @@ All Noma prompts follow this structure:
 @myResearchNotes Give my friend a summary of the papers I read today
 @RoomDecorIdeas Write a blog post about my best room decor pics from my Pinterest board
 ```
-Press `Ctrl/⌘ + Space` to generate a text response using Gemini Nano via the Multimodal Prompt API.
+Press `Ctrl + Space` to generate a text response using Gemini Nano via the Multimodal Prompt API.
 
 ### Image Generation (Server Side Text-to-Image)
 To generate images, use the **`Create`** keyword right after a @tag:
 ```
 @DesignNotes Create a modern logo for my coffee shop based on all my ideas
 ```
-Press `Ctrl/⌘ + Space` to generate an image using Gemini 2.5 Flash Image via the Gemini Developer API.
+Press `Ctrl + Space` to generate an image using Gemini 2.5 Flash Image via the Gemini Developer API.
 
 <img src="PawsofHope.gif" alt="Paws of Hope Demo" width="600"/>
 
