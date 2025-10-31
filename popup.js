@@ -210,13 +210,12 @@ async function onSaveOpenAIKey() {
             els.saveOpenaiKey.disabled = true;
             els.openaiKeyStatus.textContent = 'Saving...';
             await chrome.storage.local.set({
-                    'noma-openai-key': apiKey,
-              'whisperApiKey': apiKey
+                    'noma-openai-key': apiKey
     });
             if (ragSystem) {
                   await ragSystem.setOpenAIKey(apiKey);
     }
-            els.openaiKeyStatus.textContent = '✓ API key saved (for semantic search & audio transcription)';
+            els.openaiKeyStatus.textContent = '✓ API key saved (for semantic search)';
             els.openaiKey.value = '';
               setTimeout(() => {
                   checkApiKeyStatus();
@@ -247,7 +246,7 @@ async function onSaveGeminiKey() {
             await chrome.storage.local.set({
                     'noma-gemini-api-key': apiKey
     });
-            els.geminiKeyStatus.textContent = '✓ API key saved (for image generation)';
+            els.geminiKeyStatus.textContent = '✓ API key saved (for image generation & audio transcription)';
             els.geminiKey.value = '';
               setTimeout(() => {
                   checkGeminiKeyStatus();
@@ -269,7 +268,7 @@ async function checkGeminiKeyStatus() {
                   els.geminiKeyStatus.textContent = '✓ API key configured';
     }
               else {
-                  els.geminiKeyStatus.textContent = 'Required for image generation with Gemini Nano Banana';
+                  els.geminiKeyStatus.textContent = 'Required for image generation & audio transcription';
     }
   }
     catch (error) {
@@ -341,20 +340,45 @@ async function render() {
     },
     0);
             const hasAudio = ctx.some(c => c.type === 'audio');
-            parts.push(`      <div class="tag-item">        <div class="tag-header">          <div style="display: flex; align-items: center; gap: 6px;">            ${hasAudio ? '<img src="Images/audio-logo.png" alt="Audio" style="width: 14px; height: 14px;" />' : ''}            <div>              <span class="tag-name">@${t.name}</span>              <span class="tag-count">${ctx.length} context${ctx.length !== 1 ? 's' : ''}</span>              ${totalTextLength > 25000 ? `<div style="font-size: 10px; color: #6b7280; margin-top: 2px;">${
+            parts.push(`
+      <div class="tag-item">
+        <div class="tag-header">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            ${hasAudio ? '<img src="Images/audio-logo.png" alt="Audio" style="width: 14px; height: 14px;" />' : ''}
+            <div>
+              <span class="tag-name">@${t.name}</span>
+              <span class="tag-count">${ctx.length} context${ctx.length !== 1 ? 's' : ''}</span>
+              ${totalTextLength > 25000 ? `<div style="font-size: 10px; color: #6b7280; margin-top: 2px;">${
             Math.round(totalTextLength/1000)
     }
-        k chars</div>` : ''}            </div>          </div>          <button data-del="${t.id}" class="btn btn-small">Delete</button>        </div>        ${ctx.slice(0, 2).map(c => `          <div class="context-item">            ${
+        k chars</div>` : ''}
+            </div>
+          </div>
+          <button data-del="${t.id}" class="btn btn-small">Delete</button>
+        </div>
+        ${ctx.slice(0, 2).map(c => `
+          <div class="context-item">
+            ${
             c.title ? `<div class="context-title">${c.title.substring(0, 40) + (c.title.length > 40 ? '...' : '')}</div>` : ''
     }
-                    <div>              ${
-            c.type === 'image' ?                 `<strong>Image:</strong> ${(c.imageUrl || 'Uploaded image').substring(0, 30)}...` :                c.type === 'audio' ?                `<strong>🎙️ Audio:</strong> ${escapeHtml((c.transcription || 'Transcribed audio').substring(0, 100) + (c.transcription && c.transcription.length > 100 ? '...' : ''))}` :                escapeHtml((c.text || c.selection || '').substring(0,
+                    <div>
+              ${
+            c.type === 'image' ? 
+                `<strong>Image:</strong> ${(c.imageUrl || 'Uploaded image').substring(0, 30)}...` :
+                c.type === 'audio' ?
+                `<strong>🎙️ Audio:</strong> ${escapeHtml((c.transcription || 'Transcribed audio').substring(0, 100) + (c.transcription && c.transcription.length > 100 ? '...' : ''))}` :
+                escapeHtml((c.text || c.selection || '').substring(0,
       120) + (c.text && c.text.length > 120 ? '...' : ''))
     }
-                    </div>          </div>        `).join("")}        ${ctx.length > 2 ? `<div class="status-text" style="text-align: center; margin-top: auto; padding-top: 8px;">+${
+                    </div>
+          </div>
+        `).join("")}
+        ${ctx.length > 2 ? `<div class="status-text" style="text-align: center; margin-top: auto; padding-top: 8px;">+${
             ctx.length - 2
     }
-        more</div>` : ''}      </div>    `);
+        more</div>` : ''}
+      </div>
+    `);
   }
       els.list.innerHTML = parts.join("");
       els.list.querySelectorAll("button[data-del]").forEach(btn => {
@@ -629,7 +653,8 @@ async function renderCalendarComponents() {
             const {
             'noma-calendar-settings': settings = {}
     }
-        =       await chrome.storage.local.get('noma-calendar-settings');
+        = 
+      await chrome.storage.local.get('noma-calendar-settings');
             els.calendarClientId.value = settings.clientId || '';
             await waitForCalendarService();
             const isSignedIn = CalendarService.isSignedIn();
@@ -656,7 +681,20 @@ async function renderCalendarComponents() {
                   const tagItems = Object.entries(calendarTags).map(([tagId,
       tag]) => {
                         const lastSynced = tag.lastSynced ? new Date(tag.lastSynced).toLocaleString() : 'Never';
-                        return `          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 8px;">            <div>              <strong>@${tag.tagName}</strong>              <div style="font-size: 11px; color: #64748b;">                ${tag.type === 'today' ? "Today's Meetings" : 'Next 30 Days'} • Last synced: ${lastSynced}              </div>            </div>            <div>              <button data-sync-calendar="${tagId}" class="sync-calendar-btn" style="font-size: 12px; padding: 4px 8px; margin-right: 4px;">Sync</button>              <button data-delete-calendar="${tagId}" class="delete-calendar-btn" style="font-size: 12px; padding: 4px 8px;">Delete</button>            </div>          </div>        `;
+                        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 8px;">
+            <div>
+              <strong>@${tag.tagName}</strong>
+              <div style="font-size: 11px; color: #64748b;">
+                ${tag.type === 'today' ? "Today's Meetings" : 'Next 30 Days'} • Last synced: ${lastSynced}
+              </div>
+            </div>
+            <div>
+              <button data-sync-calendar="${tagId}" class="sync-calendar-btn" style="font-size: 12px; padding: 4px 8px; margin-right: 4px;">Sync</button>
+              <button data-delete-calendar="${tagId}" class="delete-calendar-btn" style="font-size: 12px; padding: 4px 8px;">Delete</button>
+            </div>
+          </div>
+        `;
       }).join('');
                   els.calendarTagsList.innerHTML = tagItems;
                   els.calendarTagsList.querySelectorAll('.sync-calendar-btn').forEach(btn => {
@@ -853,7 +891,19 @@ async function renderGmailComponents() {
                   const config = gmailTags[tagId];
                   const lastSynced = config.lastSynced ? new Date(config.lastSynced).toLocaleString() : 'Never';
                   const typeDescription = 'Recent Emails (5)';
-                  html += `        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">          <div>            <div style="font-weight: 500; color: #1f2937;">@${config.tagName}</div>            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${typeDescription}</div>            <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Last synced: ${lastSynced}</div>          </div>          <div style="display: flex; gap: 8px;">            <button class="btn btn-small gmail-sync-btn" data-tag-id="${tagId}">Sync</button>            <button class="btn btn-small gmail-delete-btn" data-tag-id="${tagId}" style="background: #ef4444; color: white; border-color: #ef4444;">Delete</button>          </div>        </div>      `;
+                  html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
+          <div>
+            <div style="font-weight: 500; color: #1f2937;">@${config.tagName}</div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${typeDescription}</div>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Last synced: ${lastSynced}</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-small gmail-sync-btn" data-tag-id="${tagId}">Sync</button>
+            <button class="btn btn-small gmail-delete-btn" data-tag-id="${tagId}" style="background: #ef4444; color: white; border-color: #ef4444;">Delete</button>
+          </div>
+        </div>
+      `;
     }
             els.gmailTagsList.innerHTML = html;
             els.gmailTagsList.querySelectorAll('.gmail-sync-btn').forEach(btn => {
@@ -1207,7 +1257,19 @@ async function renderNotionComponents() {
                   const lastSynced = config.lastSynced ? new Date(config.lastSynced).toLocaleString() : 'Never';
                   const pageIdDisplay = config.pageId ? config.pageId.substring(0,
       8) + '...' : 'Unknown';
-                  html += `        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">          <div>            <div style="font-weight: 500; color: #1f2937;">@${config.tagName || 'Unnamed'}</div>            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">Page ID: ${pageIdDisplay}</div>            <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Last synced: ${lastSynced}</div>          </div>          <div style="display: flex; gap: 8px;">            <button class="btn btn-small notion-sync-btn" data-tag-id="${tagId}">Sync</button>            <button class="btn btn-small notion-delete-btn" data-tag-id="${tagId}" style="background: #ef4444; color: white; border-color: #ef4444;">Delete</button>          </div>        </div>      `;
+                  html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
+          <div>
+            <div style="font-weight: 500; color: #1f2937;">@${config.tagName || 'Unnamed'}</div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">Page ID: ${pageIdDisplay}</div>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Last synced: ${lastSynced}</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-small notion-sync-btn" data-tag-id="${tagId}">Sync</button>
+            <button class="btn btn-small notion-delete-btn" data-tag-id="${tagId}" style="background: #ef4444; color: white; border-color: #ef4444;">Delete</button>
+          </div>
+        </div>
+      `;
     }
             els.notionTagsList.innerHTML = html;
             els.notionTagsList.querySelectorAll('.notion-sync-btn').forEach(btn => {
@@ -1430,9 +1492,23 @@ async function renderPinterestComponents() {
             let html = '';
             for (const tagId of tagIds) {
                   const config = pinterestTags[tagId];
-                  const lastSynced = config.lastSynced         ? new Date(config.lastSynced).toLocaleString()        : 'Never';
+                  const lastSynced = config.lastSynced 
+        ? new Date(config.lastSynced).toLocaleString()
+        : 'Never';
                   const pinCount = config.pinCount || 0;
-                  html += `        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">          <div>            <div style="font-weight: 500; color: #1f2937;">@${config.tagName || 'Unnamed'}</div>            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${config.username}/${config.boardName}</div>            <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">${pinCount} pins • Last synced: ${lastSynced}</div>          </div>          <div style="display: flex; gap: 8px;">            <button class="btn btn-small pinterest-sync-btn" data-tag-id="${tagId}">Sync</button>            <button class="btn btn-small pinterest-delete-btn" data-tag-id="${tagId}" style="background: #ef4444; color: white; border-color: #ef4444;">Delete</button>          </div>        </div>      `;
+                  html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
+          <div>
+            <div style="font-weight: 500; color: #1f2937;">@${config.tagName || 'Unnamed'}</div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${config.username}/${config.boardName}</div>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">${pinCount} pins • Last synced: ${lastSynced}</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-small pinterest-sync-btn" data-tag-id="${tagId}">Sync</button>
+            <button class="btn btn-small pinterest-delete-btn" data-tag-id="${tagId}" style="background: #ef4444; color: white; border-color: #ef4444;">Delete</button>
+          </div>
+        </div>
+      `;
     }
             els.pinterestTagsList.innerHTML = html;
             els.pinterestTagsList.querySelectorAll('.pinterest-sync-btn').forEach(btn => {
