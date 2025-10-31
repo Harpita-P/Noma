@@ -140,15 +140,3 @@ Noma supports linking data from **Notion**, **Gmail**, **Pinterest**, and **Goog
 | `Ctrl + Q` | Open tag selector |
 | `Ctrl + Space` | Generate response (text or image) |
 
----
-
-## Tips
-
-### Tags not showing / Tag selector not opening on Ctrl + Q
-- Reload the extension & refresh the page!
-### How can I use Temporary Context without saving it to a tag?
-- Highlight text on any webpage
-- Click the Noma spinner icon that appears
-- This saves temporary context for your next prompt
-- Use it immediately with any tag
-- When you hit Ctrl + Space, the temporary context will be deleted.
