@@ -62,6 +62,8 @@ Press `Ctrl + Space` to generate an image using Gemini 2.5 Flash Image via the G
 
 ### Tags not showing / Tag selector not opening on Ctrl + Q
 - Reload the extension &/ refresh the page you are trying to use Noma on!
+- Noma currently works across many platforms including Gmail, Slack, Google Colab, LinkedIn, Most Search bars, AI chats like ChatGPT, Claude & Perplexity, Github etc.
+- The tag selector may not be trigger properly on platforms like Google Docs, Medium, Notion, etc. We hope to update this soon.
 
 ### How can I use Temporary Context without saving it to a tag?
 - Highlight text on any webpage
