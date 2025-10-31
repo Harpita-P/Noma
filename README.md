@@ -39,11 +39,11 @@ All Noma prompts follow this structure:
 ```
 
 ### Text Generation using Gemini Nano via the Multimodal Prompt API
-Text Inputs:
+Your Contexts can be Text Inputs:
 ```
 @myResearchNotes Give my friend a summary of the papers I read today 
 ```
-Image Inputs:
+Your Contexts can be Image Inputs:
 ```
 @RoomDecorIdeas Write a blog post about my best room decor pics from my Pinterest board
 ```
