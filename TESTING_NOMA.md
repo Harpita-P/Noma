@@ -25,7 +25,7 @@ cd Noma
 2. Enable **Developer Mode** (toggle in top-right corner)
 3. Click **Load unpacked**
 4. Select the Noma folder
-5. The Noma extension should now be active! Save some context to your first tag, and try it out.
+5. The Noma extension should now be active! Highlight some text, right click and Save text to a new @tag! 
 
 ---
 ## You Can Now Begin Using Noma!
