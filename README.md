@@ -106,7 +106,7 @@ Press `Ctrl/⌘ + Space` to generate an image using Gemini 2.5 Flash Image via t
 - Highlight text on any webpage
 - Click the Noma spinner icon that appears ("Shared with Noma!")
 - This saves temporary context for your next prompt 
-- Use it immediately with any tag("Shared with Noma!")
+- Use it immediately with any tag
 - When you hit Ctrl + Space, the temporary context will be deleted.
 
 ---
