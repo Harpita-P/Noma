@@ -1,6 +1,8 @@
 
 <img src="Images/Noma-Main.png" alt="Noma" width="1920"/>
 
+> **[View Project on Devpost](https://devpost.com/software/noma-yjpsrf)**
+
 **Noma** is a chrome extension that brings context-aware AI to your cursor. Through **curated tags**, it brings your **personal context** – ideas you save while browsing, Notion pages, Pinterest boards, docs, even audio notes – straight into the conversation, wherever you’re working. No switching, no searching, no starting from scratch. Just **inline AI** that finally understands what you mean.
 
 By default, Noma runs **on-device** with **Gemini Nano** and uses the **Multimodal Prompt API** to support text and image inputs for providing text responses. This runs entirely **Client Side**, meaning privacy first for your data. Noma also offers **Hybrid Server Side AI** features: To generate image outputs using your context, Noma uses **Gemini 2.5 Flash Image** via the **Gemini Developer API**. For contexts that are too large for Nano (≈ **25,000+ characters**), Noma uses **RAG** backed by an **OpenAI embedding model** to retrieve only the most relevant pieces to create a reduced context for the final prompt. 
