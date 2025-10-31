@@ -9,46 +9,7 @@ By default, Noma runs **on-device** with **Gemini Nano** and uses the **Multimod
 
 ## Installation
 
-Noma is an **unpublished Chrome extension**, so testing requires a local installation. Follow the steps below to get started.
-
-### 1. Get the Code
-
-**Option A: Clone the Repository**
-```bash
-git clone https://github.com/Harpita-P/Noma.git
-cd Noma
-```
-
-**Option B: Download ZIP**
-1. Go to [github.com/Harpita-P/Noma](https://github.com/Harpita-P/Noma)
-2. Click the green **Code** button
-3. Select **Download ZIP**
-4. Extract the ZIP file to a folder
-
-### 2. Load Extension in Chrome
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable **Developer Mode** (toggle in top-right corner)
-3. Click **Load unpacked**
-4. Select the `/dist` folder inside `Noma`
-5. The Noma extension should now be active!
-
----
-## You Can Now Begin Using Noma!
-
-## Required API Keys
-
-To unlock Noma's full capabilities, you'll need to configure API keys in the extension settings:
-
-### OpenAI API Key
-- **Purpose**: Enables RAG (semantic search) for large contexts (25k+ characters) & Whisper for audio transcription
-- **Get it**: [OpenAI Platform](https://platform.openai.com/api-keys)
-- **Setup**: Click Noma icon → Settings → Paste key in "OpenAI API Key" field → Save
-
-### Gemini Developer API Key
-- **Purpose**: Enables text-to-image generation via the `Create` keyword
-- **Get it**: [Google AI Studio](https://aistudio.google.com/app/apikey)
-- **Setup**: Click Noma icon → Settings → Paste key in "Gemini API Key" field → Save
-- **Note**: Requires billing enabled for image generation
+Noma is an **unpublished Chrome extension**, so testing requires a local installation. Go to [TESTING_NOMA.md](TESTING_NOMA.md) to follow the setup instructions.
 
 ---
 
