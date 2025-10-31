@@ -24,8 +24,8 @@ cd Noma
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable **Developer Mode** (toggle in top-right corner)
 3. Click **Load unpacked**
-4. Select the `/dist` folder inside `Noma`
-5. The Noma extension should now be active!
+4. Select the Noma folder
+5. The Noma extension should now be active! Save some context to your first tag, and try it out.
 
 ---
 ## You Can Now Begin Using Noma!
