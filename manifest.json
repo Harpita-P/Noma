@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Noma",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "description": "Browser AI that lives in your cursor. With @tags, Noma sees all your connected context to make you productive.",
   "permissions": ["activeTab", "scripting", "contextMenus", "storage", "identity"],
   "trial_tokens": [
